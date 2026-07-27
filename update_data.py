@@ -255,9 +255,6 @@ def hitung_semua_indikator(df_saham):
     elif arah_streak == -1 and streak_count >= 1: info_streak = f"Turun {streak_count} Hari Beruntun"
     else: info_streak = "Sideways / Stagnan"
 
-    # ====================================================
-    # TAMBAHAN 4: OPEN=LOW & RISK REWARD RATIO (BARU)
-    # ====================================================
     if open_today == low_today and close_today > open_today: status_open = "Open = Low (Bullish Kuat)"
     elif open_today == high_today and close_today < open_today: status_open = "Open = High (Tekanan Jual)"
     else: status_open = "Normal"
@@ -284,7 +281,7 @@ def hitung_semua_indikator(df_saham):
         "Posisi VWAP": posisi_vwap, "Kekuatan A/D": smart_money, "Kelas Transaksi": kelas_transaksi,
         "RVOL (Anomali Vol)": rvol_status, "Fase Siklus Bandar": siklus, "Karakter Gorengan": karakter_bandar,
         "Sinyal Cuci Barang": deteksi_shakeout, "Streak Harian": info_streak, "Auto Trading Plan": auto_plan,
-        "Status Open": status_open, "Risk/Reward Ratio": status_rrr # DATA BARU
+        "Status Open": status_open, "Risk/Reward Ratio": status_rrr
     }
 
 # ==========================================

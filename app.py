@@ -196,7 +196,6 @@ with st.sidebar.expander("🛠️ Manajemen Preset Kustom"):
 
         if st.button("💾 Simpan Preset"):
             if nama_preset_baru.strip():
-                # Hapus nama lama jika user me-rename presetnya
                 if pilih_edit != "-- Buat Baru --" and pilih_edit != nama_preset_baru.strip():
                     del kustom_presets[pilih_edit]
                 kustom_presets[nama_preset_baru.strip()] = kustom_input
@@ -336,7 +335,7 @@ if not df_hasil.empty:
                 "Vol Breakout", "Status Gap", "Fase Siklus Bandar", "Karakter Gorengan", "Tekanan Bandar", "Kekuatan A/D", 
                 "Status Bandar", "OBV Trend", "RSI (14D)", "Momentum", "MA Signal", "MA Cross", "MACD", "Status BB", 
                 "Risiko", "Likuiditas", "Total Score", "Rekomendasi"
-            ] # Terakhir Update sudah dibuang dari list agar tidak merusak tabel
+            ]
             
             if "Ringkasan" in mode_tampilan: kolom_pilih = kolom_ringkasan
             elif "Bandarmologi" in mode_tampilan: kolom_pilih = kolom_bandar
