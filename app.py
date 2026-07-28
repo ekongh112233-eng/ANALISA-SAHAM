@@ -230,13 +230,13 @@ def warna_tabel(val):
     if isinstance(val, (int, float)): 
         return 'color: #22c55e; font-weight: 600;' if val > 0 else ('color: #ef4444; font-weight: 600;' if val < 0 else '')
     elif isinstance(val, str):
-        if any(x in val for x in ["Positif", "Uptrend", "BELI", "Breakout Upper", "Bottom Rebound", "DALAM AKUISISI", "Rendah", "▲", "Golden Cross", "Bullish", "Tembus MA20", "Akumulasi", "Big Cap", "Gap Up", "Dominan Beli", "Undervalued", "Marubozu", "Dekat Support", "Hammer", "Di Atas VWAP", "Sultan", "Ledakan Ekstrem", "Solid", "Mark-Up", "Jarum Bawah", "Naik", "Open = Low", "Sangat Menarik"]): 
+        if any(x in val for x in ["Positif", "Uptrend", "BELI", "Breakout Upper", "Bottom Rebound", "DALAM AKUISISI", "Rendah", "▲", "Golden Cross", "Bullish", "Tembus MA20", "Akumulasi", "Big Cap", "Gap Up", "Dominan Beli", "Undervalued", "Marubozu", "Dekat Support", "Hammer", "Di Atas VWAP", "Sultan", "Ledakan Ekstrem", "Solid", "Mark-Up", "Jarum Bawah", "Naik", "Open = Low", "Sangat Menarik", "Perfect Uptrend", "Awal Reversal"]): 
             return 'color: #22c55e; font-weight: 600;'
-        elif any(x in val for x in ["Negatif", "Downtrend", "WAIT & SEE", "Tinggi", "▼", "Death Cross", "Bearish", "Distribusi", "Small Cap", "Gap Down", "Dominan Jual", "Overvalued", "Rawan Pucuk", "Di Bawah VWAP", "Gorengan Sepi", "Sepi", "Tiang Jemuran", "Mark-Down", "Turun", "Open = High", "Tidak Ideal"]): 
+        elif any(x in val for x in ["Negatif", "Downtrend", "WAIT & SEE", "Tinggi", "▼", "Death Cross", "Bearish", "Distribusi", "Small Cap", "Gap Down", "Dominan Jual", "Overvalued", "Rawan Pucuk", "Di Bawah VWAP", "Gorengan Sepi", "Sepi", "Tiang Jemuran", "Mark-Down", "Turun", "Open = High", "Tidak Ideal", "Strong Downtrend"]): 
             return 'color: #ef4444; font-weight: 600;'
         elif val == "> 1 Miliar": 
             return 'color: #3b82f6; font-weight: 600;'
-        elif any(x in val for x in ["Squeeze", "RENCANA AKUISISI", "Sedang", "Mid Cap", "Seimbang", "Fair Value", "Area Tengah", "Doji", "Ritel Aktif", "Anomali", "Accumulation", "Sideways", "Ideal", "Menengah"]): 
+        elif any(x in val for x in ["Squeeze", "RENCANA AKUISISI", "Sedang", "Mid Cap", "Seimbang", "Fair Value", "Area Tengah", "Doji", "Ritel Aktif", "Anomali", "Accumulation", "Sideways", "Ideal", "Menengah", "Konsolidasi / Transisi"]): 
             return 'color: #eab308; font-weight: 600;'
         elif "⭐" in val: 
             return 'color: #22c55e;' if len(val) >= 6 else 'color: #ef4444;'
@@ -245,16 +245,14 @@ def warna_tabel(val):
 # Fungsi Helper Rendering Tabel di Tab 5
 def render_strategy_table(df_subset, file_name):
     if not df_subset.empty:
-        # Urutkan berdasarkan Score atau Volume jika ada
         sort_cols = [c for c in ['Total Score', 'Volume'] if c in df_subset.columns]
         if sort_cols: df_subset = df_subset.sort_values(by=sort_cols, ascending=[False, False]).reset_index(drop=True)
         
         if "Total Score" in df_subset.columns: 
             df_subset["Total Score"] = df_subset["Total Score"].apply(format_skor)
 
-        # Siapkan kolom yang akan ditampilkan
         kolom_utama = ["Ticker", "Harga (Rp)", "Change (%)", "Volume", "Total Score", "Auto Trading Plan"]
-        kolom_tambahan = ["RVOL (Anomali Vol)", "Tekanan Bandar", "Status Bandar", "Kekuatan A/D", "Sinyal Cuci Barang", "Status BB", "MA Signal"]
+        kolom_tambahan = ["Trend MA (5,20,50)", "RVOL (Anomali Vol)", "Tekanan Bandar", "Status Bandar", "Kekuatan A/D", "Sinyal Cuci Barang", "Status BB", "MA Signal"]
         kolom_tampil = [c for c in kolom_utama + kolom_tambahan if c in df_subset.columns]
 
         styler = df_subset[kolom_tampil].style.format({"Harga (Rp)": format_angka, "Volume": format_angka, "Change (%)": format_pct})
@@ -348,14 +346,14 @@ if not df_hasil.empty:
             
             kolom_ringkasan = ["Ticker", "Harga (Rp)", "Change (%)", "Rekomendasi", "Status Open", "Posisi VWAP", "Total Score", "Volume", "Auto Trading Plan"]
             kolom_bandar = ["Ticker", "Harga (Rp)", "Change (%)", "Fase Siklus Bandar", "Kekuatan A/D", "Status Bandar", "RVOL (Anomali Vol)", "Karakter Gorengan", "Tekanan Bandar", "OBV Trend"]
-            kolom_teknikal = ["Ticker", "Harga (Rp)", "Change (%)", "Auto Trading Plan", "Risk/Reward Ratio", "Sinyal Cuci Barang", "Posisi Entry", "Pola Candle", "MA Signal", "Status BB", "RSI (14D)", "MACD"]
+            kolom_teknikal = ["Ticker", "Harga (Rp)", "Change (%)", "Auto Trading Plan", "Risk/Reward Ratio", "Sinyal Cuci Barang", "Posisi Entry", "Pola Candle", "Trend MA (5,20,50)", "MA Signal", "Status BB", "RSI (14D)", "MACD"]
             kolom_fundamental = ["Ticker", "Harga (Rp)", "Kategori", "Valuasi", "PER (x)", "PBV (x)", "Kelas Transaksi", "Likuiditas"]
             kolom_semua = [
                 "Ticker", "Status Open", "Risk/Reward Ratio", "Auto Trading Plan", "Streak Harian", "Sinyal Cuci Barang", 
                 "Kategori", "Kelas Transaksi", "Valuasi", "Harga (Rp)", "PER (x)", "PBV (x)", "Harga MA20", "Posisi VWAP", 
                 "Support", "Resistance", "Posisi Entry", "Pola Candle", "Change (%)", "Volume", "RVOL (Anomali Vol)", 
                 "Vol Breakout", "Status Gap", "Fase Siklus Bandar", "Karakter Gorengan", "Tekanan Bandar", "Kekuatan A/D", 
-                "Status Bandar", "OBV Trend", "RSI (14D)", "Momentum", "MA Signal", "MA Cross", "MACD", "Status BB", 
+                "Status Bandar", "OBV Trend", "RSI (14D)", "Momentum", "Trend MA (5,20,50)", "MA Signal", "MA Cross", "MACD", "Status BB", 
                 "Risiko", "Likuiditas", "Total Score", "Rekomendasi"
             ]
             
@@ -427,94 +425,110 @@ if not df_hasil.empty:
 
     with tab5:
         st.markdown("## 🦅 Radar BSJP (Beli Sore Jual Pagi) - Spesial Curi Start")
-        st.markdown("<div class='bandar-box-green'><b>💡 INFO STRATEGI:</b> Tab ini berisi 5 gaya filter longgar untuk mencari peluang beli di sesi 2 (sore) agar berpotensi profit saat bursa buka esok pagi.</div>", unsafe_allow_html=True)
+        st.markdown("<div class='bandar-box-green'><b>💡 INFO STRATEGI:</b> Tab ini berisi 6 gaya filter untuk mencari peluang beli di sesi 2 (sore) agar berpotensi profit saat bursa buka esok pagi.</div>", unsafe_allow_html=True)
         
         if 'Tekanan Bandar' not in df_hasil.columns:
-            st.warning("⏳ **Fitur Radar belum menerima data terbaru.** Harap klik tombol 'Muat Ulang Data Server' di sidebar.")
+            st.warning("⏳ **Fitur Radar belum menerima data terbaru.** Harap jalankan 'update_data.py' dan muat ulang web.")
         else:
-            t_v1, t_v2, t_v3, t_v4, t_v5 = st.tabs([
-                "⚡ V1: Momentum Breakout", 
-                "🎣 V2: Reversal Emas", 
-                "🤫 V3: Akumulasi Senyap", 
-                "🌊 V4: Big Cap Flow", 
-                "🚀 V5: Spekulasi Lapis 3"
+            t_v1, t_v2, t_v3, t_v4, t_v5, t_v6 = st.tabs([
+                "⚡ V1: Momentum", 
+                "🎣 V2: Reversal", 
+                "🤫 V3: Senyap", 
+                "🌊 V4: Big Cap", 
+                "🚀 V5: Spekulasi",
+                "🎯 V6: Squeeze & Konsolidasi"
             ])
 
-            # --- KONDISI V1: Momentum Breakout (Klasik & Aman) ---
+            # --- V1: Momentum Breakout (DIPERKETAT: Harus ada skor fundamental teknikal minimal 4 + Liquid) ---
             cond_v1 = (
                 (df_hasil['Posisi VWAP'] == 'Di Atas VWAP (Kuat)') & 
                 (df_hasil['OBV Trend'] == 'Akumulasi (Naik)') & 
                 (df_hasil['Momentum'] == 'Positif') & 
-                (df_hasil['Karakter Gorengan'].isin(['Solid (Jarang Dibanting)', 'Normal']))
+                (df_hasil['Karakter Gorengan'].isin(['Solid (Jarang Dibanting)', 'Normal'])) &
+                (df_hasil['Kelas Transaksi'] != 'Gorengan Sepi (< 5M)') &
+                (df_hasil['Total Score'] >= 4)
             )
             df_v1 = df_hasil[cond_v1].copy()
 
-            # --- KONDISI V2: Reversal Emas (Tangkap Pisau Mantul) ---
+            # --- V2: Reversal Emas (DIPERKETAT: Harus cukup liquid & tidak sedang terdistribusi) ---
             cond_v2 = (
                 (df_hasil['Sinyal Cuci Barang'] == 'Jarum Bawah (Sinyal Pantulan Kuat)') & 
                 (df_hasil['Tekanan Bandar'] == 'Dominan Beli (Hajar Kanan)') &
-                (df_hasil['Posisi Entry'].isin(['Dekat Support (Low Risk)', 'Area Tengah']))
+                (df_hasil['Posisi Entry'].isin(['Dekat Support (Low Risk)', 'Area Tengah'])) &
+                (df_hasil['Kelas Transaksi'] != 'Gorengan Sepi (< 5M)') &
+                (df_hasil['OBV Trend'] != 'Distribusi (Turun)')
             )
-            # Opsional: pastikan RSI ada dan rendah, atau change tidak terlalu tinggi
-            if 'RSI (14D)' in df_hasil.columns:
-                cond_v2 = cond_v2 & (df_hasil['RSI (14D)'] <= 55)
             df_v2 = df_hasil[cond_v2].copy()
 
-            # --- KONDISI V3: Akumulasi Senyap (Volume Spike Sesi 2) ---
+            # --- V3: Akumulasi Senyap (DIPERKETAT: Harga tidak boleh bocor ke bawah VWAP + OBV wajib naik) ---
             cond_v3 = (
                 (df_hasil['Kekuatan A/D'] == 'Akumulasi Pro (Smart Money)') & 
                 (df_hasil['Status BB'] == 'Squeeze') & 
                 (df_hasil['RVOL (Anomali Vol)'].isin(['Ledakan Ekstrem (> 300%)', 'Anomali Tinggi (150-300%)'])) &
-                (df_hasil['Change (%)'] < 5.0)  # Jangan yang sudah terbang terlalu tinggi
+                (df_hasil['Change (%)'] < 5.0) &
+                (df_hasil['OBV Trend'] == 'Akumulasi (Naik)') &
+                (df_hasil['Posisi VWAP'] != 'Di Bawah VWAP (Lemah)')
             )
             df_v3 = df_hasil[cond_v3].copy()
 
-            # --- KONDISI V4: Big/Mid Cap Flow (Follow The Trend) ---
+            # --- V4: Big/Mid Cap Flow (DIPERKETAT: Total Score wajib tinggi dan momentum positif) ---
             cond_v4 = (
                 (df_hasil['Kategori'].isin(['Big Cap (Lapis 1)', 'Mid Cap (Lapis 2)'])) & 
                 (df_hasil['MA Signal'] == 'Uptrend') & 
                 (df_hasil['MACD'].isin(['Strong Bullish', 'Bullish MACD'])) &
-                (df_hasil['OBV Trend'] == 'Akumulasi (Naik)')
+                (df_hasil['OBV Trend'] == 'Akumulasi (Naik)') &
+                (df_hasil['Momentum'] == 'Positif') &
+                (df_hasil['Total Score'] >= 6)
             )
             df_v4 = df_hasil[cond_v4].copy()
 
-            # --- KONDISI V5: High Risk Volatility (Spekulasi Gorengan) ---
+            # --- V5: Spekulasi Lapis 3 (DIPERKETAT: Wajib dikonfirmasi Akumulasi Bandar atau OBV) ---
             cond_v5 = (
                 (df_hasil['Kategori'] == 'Small Cap (Lapis 3)') & 
                 (df_hasil['Tekanan Bandar'] == 'Dominan Beli (Hajar Kanan)') & 
                 (df_hasil['Vol Breakout'] == 'Tembus MA20') & 
-                (df_hasil['Kelas Transaksi'].isin(['Sultan (> 50M/hari)', 'Ritel Aktif (5M - 50M)']))
+                (df_hasil['Kelas Transaksi'].isin(['Sultan (> 50M/hari)', 'Ritel Aktif (5M - 50M)'])) &
+                ((df_hasil['Status Bandar'] == 'Akumulasi Kuat') | (df_hasil['OBV Trend'] == 'Akumulasi (Naik)'))
             )
             df_v5 = df_hasil[cond_v5].copy()
 
-            # RENDER TAB V1
-            with t_v1:
-                st.subheader("⚡ V1: Momentum Breakout (Aman & Stabil)")
-                st.write("Mencari saham yang harganya ditutup di atas rata-rata bandar hari ini (VWAP) dengan uang jelas masuk (OBV). Karakter bandarnya tidak suka banting harga.")
-                render_strategy_table(df_v1, "BSJP_V1_Momentum")
+            # --- V6 BARU: MA 5,20,50 + SQUEEZE/SIDEWAYS ---
+            cond_v6 = (
+                # Wajib sedang merapat / konsolidasi
+                ((df_hasil['Status BB'] == 'Squeeze') | (df_hasil['Fase Siklus Bandar'] == 'Sideways')) & 
+                # MA 5, 20, 50 menunjukan persiapan naik / sempurna
+                (df_hasil['Trend MA (5,20,50)'].isin(['Perfect Uptrend (5>20>50)', 'Awal Reversal (5>20)'])) &
+                # Jangan pilih saham terlalu sepi
+                (df_hasil['Kelas Transaksi'] != 'Gorengan Sepi (< 5M)')
+            )
+            if 'Trend MA (5,20,50)' in df_hasil.columns:
+                df_v6 = df_hasil[cond_v6].copy()
+            else:
+                df_v6 = pd.DataFrame() # Fallback jika data belum diupdate
 
-            # RENDER TAB V2
+            with t_v1:
+                st.subheader("⚡ V1: Momentum Breakout")
+                st.write("Saham kuat di atas rata-rata (VWAP) dengan dana segar (OBV). (Diperketat: Liquid & Score >= 4).")
+                render_strategy_table(df_v1, "BSJP_V1_Momentum")
             with t_v2:
                 st.subheader("🎣 V2: Reversal Emas (Tangkap Pantulan)")
-                st.write("Saham ini sempat ditekan turun, tapi sore hari ada aksi borong kuat (Hajar Kanan) yang meninggalkan jejak *ekor bawah/jarum*. Risk/reward sangat menarik.")
+                st.write("Jejak ekor bawah (Hajar Kanan) di area support. (Diperketat: Liquid & OBV tidak turun).")
                 render_strategy_table(df_v2, "BSJP_V2_Reversal")
-
-            # RENDER TAB V3
             with t_v3:
-                st.subheader("🤫 V3: Akumulasi Senyap (Curi Start)")
-                st.write("Sahamnya belum naik banyak (< 5%), sedang sideways/merapat, TAPI volumenya meledak tiba-tiba (Anomali Volume) karena Smart Money sedang kumpul barang.")
+                st.subheader("🤫 V3: Akumulasi Senyap")
+                st.write("Belum terbang (< 5%), volume meledak. (Diperketat: Posisi wajib aman dari guyuran di atas VWAP).")
                 render_strategy_table(df_v3, "BSJP_V3_Senyap")
-
-            # RENDER TAB V4
             with t_v4:
-                st.subheader("🌊 V4: Big Cap Flow (Follow Trend)")
-                st.write("Cocok bagi yang tidak suka volatilitas gorengan. Mengincar saham berkapitalisasi besar/menengah yang sedang *Uptrend* kuat dan MACD Bullish.")
+                st.subheader("🌊 V4: Big Cap Flow")
+                st.write("Saham besar sedang uptrend kencang. (Diperketat: Score Teknikal >= 6 & Momentum Positif).")
                 render_strategy_table(df_v4, "BSJP_V4_BigCap")
-
-            # RENDER TAB V5
             with t_v5:
                 st.subheader("🚀 V5: Spekulasi Lapis 3 (High Risk)")
-                st.write("Sangat berisiko! Murni mengincar saham gorengan yang sedang digas Hajar Kanan tembus MA20 dengan likuiditas tinggi. Siapkan jari untuk jualan kilat besok pagi.")
+                st.write("Gorengan liquid ditembus gas bandar. (Diperketat: Wajib terkonfirmasi Akumulasi Kuat / OBV Naik).")
                 render_strategy_table(df_v5, "BSJP_V5_Spekulasi")
+            with t_v6:
+                st.subheader("🎯 V6: Squeeze & Konsolidasi (New!)")
+                st.write("Mencari The Sleeping Dragon! Saham sedang Sideways atau Bollinger Bands menyempit (Squeeze), namun **Kombinasi MA 5, 20, 50** sudah mulai menyilang tajam ke atas (Awal Reversal) atau sudah dalam formasi Perfect Uptrend siap meledak.")
+                render_strategy_table(df_v6, "BSJP_V6_SqueezeMA")
 else:
     st.error("Silakan jalankan `update_data.py` terlebih dahulu di terminal untuk memuat data!")

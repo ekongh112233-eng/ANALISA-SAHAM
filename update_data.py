@@ -106,6 +106,12 @@ def hitung_semua_indikator(df_saham):
     elif ma_5 > ma_20: ma_cross = "Bullish"
     else: ma_cross = "Bearish"
 
+    # FITUR BARU: Trend MA Gabungan (5, 20, 50)
+    if ma_5 > ma_20 and ma_20 > ma_50: trend_ma_gabungan = "Perfect Uptrend (5>20>50)"
+    elif ma_5 > ma_20 and ma_20 <= ma_50: trend_ma_gabungan = "Awal Reversal (5>20)"
+    elif ma_5 < ma_20 and ma_20 < ma_50: trend_ma_gabungan = "Strong Downtrend (5<20<50)"
+    else: trend_ma_gabungan = "Konsolidasi / Transisi"
+
     ema_12 = df_saham['Close'].ewm(span=12, adjust=False).mean()
     ema_26 = df_saham['Close'].ewm(span=26, adjust=False).mean()
     macd_line = ema_12 - ema_26
@@ -274,6 +280,7 @@ def hitung_semua_indikator(df_saham):
         "Harga (Rp)": close_today, "Harga MA20": int(ma_20), "Support": int(support_20), "Resistance": int(resist_20),
         "Change (%)": change_pct, "Volume": vol_today, "Vol Breakout": vol_breakout, "RSI (14D)": rsi,
         "Momentum": momentum, "MA Signal": ma_signal, "MA Cross": ma_cross, "MACD": status_macd,
+        "Trend MA (5,20,50)": trend_ma_gabungan, # DATA BARU
         "Status Bandar": status_bandar, "OBV Trend": obv_trend, "Status Gap": status_gap, "Tekanan Bandar": tekanan, 
         "Status BB": status_bb, "Risiko": risiko,
         "Pola Candle": pola_candle, "Posisi Entry": posisi_entry,
