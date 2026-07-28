@@ -5,3 +5,5 @@ numpy
 requests
 matplotlib
 plotly
+google-generativeai
+python-dotenv

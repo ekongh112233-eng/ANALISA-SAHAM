@@ -3,13 +3,33 @@ import pandas as pd
 import numpy as np
 import os
 import json
+import glob
 from datetime import datetime
 import plotly.express as px
 
+# IMPORT UNTUK AI GEMINI
+import google.generativeai as genai
+
 # ==========================================
-# SECTION 1: PENGATURAN UI/UX & FILE EKSTERNAL
+# SECTION 1: PENGATURAN UI/UX & API
 # ==========================================
 st.set_page_config(page_title="Screener Saham IHSG", layout="wide", initial_sidebar_state="expanded")
+
+# KONFIGURASI API KEY GEMINI (SANGAT AMAN)
+try:
+    # 1. Coba ambil dari rahasia server Streamlit Cloud
+    GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
+except:
+    # 2. Jika gagal (berarti sedang di laptop lokal), ambil dari file .env
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+        GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+    except:
+        GEMINI_API_KEY = None
+
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
 
 st.markdown("""
     <style>
@@ -139,6 +159,87 @@ def load_data_saham():
         df["Status Akuisisi"] = df["Status Akuisisi"].fillna("TIDAK ADA")
     else: df["Status Akuisisi"] = "TIDAK ADA"
     return df
+
+# ==========================================
+# SECTION 3.5: LOGIKA AI & COMPRESSOR ARSIP
+# ==========================================
+def get_historical_summary(ticker):
+    # Cari semua file CSV arsip harian
+    arsip_files = glob.glob("Arsip_Data_Harian/screener_*.csv")
+    if not arsip_files:
+        return None
+    
+    # Ambil maksimal 60 hari terakhir agar memori tetap ringan
+    arsip_files.sort(reverse=True)
+    arsip_files = arsip_files[:60]
+    
+    df_list = []
+    for file in arsip_files:
+        try:
+            # Hanya baca kolom esensial
+            cols = ["Waktu Update", "Ticker", "Harga (Rp)", "Volume", "Posisi VWAP", "OBV Trend", "Tekanan Bandar", "Fase Siklus Bandar", "Trend MA (5,20,50)"]
+            temp_df = pd.read_csv(file, usecols=lambda c: c in cols)
+            temp_df = temp_df[temp_df["Ticker"] == ticker]
+            if not temp_df.empty:
+                date_str = file.split("_")[-1].replace(".csv", "")
+                temp_df["Tanggal"] = date_str
+                df_list.append(temp_df)
+        except:
+            pass
+    
+    if not df_list:
+        return None
+        
+    df_history = pd.concat(df_list, ignore_index=True)
+    df_history = df_history.sort_values(by=["Tanggal", "Waktu Update"])
+    
+    # Rangkum data intraday menjadi 1 baris per hari untuk AI
+    summary_text = f"REKAM JEJAK ARSIP INTRADAY SAHAM {ticker}:\n\n"
+    
+    for date, group in df_history.groupby("Tanggal"):
+        open_price = group.iloc[0]["Harga (Rp)"]
+        close_price = group.iloc[-1]["Harga (Rp)"]
+        max_vol = group["Volume"].max()
+        tekanan_akhir = group.iloc[-1]["Tekanan Bandar"]
+        siklus = group.iloc[-1]["Fase Siklus Bandar"]
+        
+        summary_text += f"📅 {date} | Buka: {open_price} | Tutup: {close_price} | Max Vol Harian: {max_vol} | Tekanan Akhir: {tekanan_akhir} | Siklus Wyckoff: {siklus}\n"
+        
+    return summary_text
+
+def analisa_bandar_ai(ticker, summary_text, harga_sekarang, status_bandar_sekarang, total_score):
+    if not GEMINI_API_KEY:
+        return "❌ Kunci API Gemini belum dikonfigurasi. Pastikan file `.env` (lokal) atau Streamlit Secrets sudah terpasang."
+    
+    # Menggunakan model flash agar respons kilat
+    model = genai.GenerativeModel('gemini-1.5-flash') 
+    
+    prompt = f"""
+    Kamu adalah seorang "Bandar Besar Pasar Modal IHSG" yang sangat manipulatif, cerdas, kalkulatif, dan blak-blakan. 
+    Tugasmu adalah menganalisa jejak rekam pergerakan saham {ticker} yang kuberikan di bawah ini.
+    Berikan pendapat rahasiamu: apakah saham ini sengaja kamu siapkan untuk ditarik naik (mark-up), atau kamu sedang menjebak ritel untuk cuci piring (distribusi)?
+    
+    Gunakan gaya bahasa gaul pasar saham Indonesia (contoh: ritel, guyur, hajar kanan, cuci piring, jemput penumpang, bandar akum, shakeout, pucuk, dsb). 
+    Jangan gunakan bahasa baku, AI banget, atau terlalu formal. Jadilah sosok bandar yang agak sombong tapi analisisnya tajam dan masuk akal. Jangan memberi disclaimer klise.
+
+    KONDISI HARI INI (DETIK INI):
+    - Harga Terakhir: Rp {harga_sekarang}
+    - Status Bandar Detik Ini: {status_bandar_sekarang}
+    - Algoritma Teknikal Score: {total_score}/10
+    
+    {summary_text}
+    
+    Berdasarkan data harian di atas, berikan analisismu (maksimal 3-4 paragraf singkat namun padat):
+    1. Apa manuver rahasia yang sedang kamu (sebagai bandar) lakukan di saham ini selama beberapa hari terakhir?
+    2. Apakah penurunan/kenaikan belakangan ini murni jebakan (shakeout) atau benar-benar akumulasi/distribusi?
+    3. Kesimpulan tajam: Untuk trader ritel yang mau "Curi Start" Beli Sore Jual Pagi (BSJP) hari ini, kamu suruh mereka sikat hajar kanan, atau lari menjauh?
+    """
+    
+    try:
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        return f"❌ Waduh, terjadi kesalahan saat menghubungi AI (mungkin server Google sibuk atau kuota limit): {e}"
 
 # ==========================================
 # SECTION 4: HEADER & SIDEBAR
@@ -425,110 +526,92 @@ if not df_hasil.empty:
 
     with tab5:
         st.markdown("## 🦅 Radar BSJP (Beli Sore Jual Pagi) - Spesial Curi Start")
-        st.markdown("<div class='bandar-box-green'><b>💡 INFO STRATEGI:</b> Tab ini berisi 6 gaya filter untuk mencari peluang beli di sesi 2 (sore) agar berpotensi profit saat bursa buka esok pagi.</div>", unsafe_allow_html=True)
+        st.markdown("<div class='bandar-box-green'><b>💡 INFO STRATEGI:</b> Tab ini berisi 7 gaya deteksi, termasuk V7 (AI Persona Bandar) untuk menganalisis jejak historis saham pilihan Anda.</div>", unsafe_allow_html=True)
         
         if 'Tekanan Bandar' not in df_hasil.columns:
             st.warning("⏳ **Fitur Radar belum menerima data terbaru.** Harap jalankan 'update_data.py' dan muat ulang web.")
         else:
-            t_v1, t_v2, t_v3, t_v4, t_v5, t_v6 = st.tabs([
+            t_v1, t_v2, t_v3, t_v4, t_v5, t_v6, t_v7 = st.tabs([
                 "⚡ V1: Momentum", 
                 "🎣 V2: Reversal", 
                 "🤫 V3: Senyap", 
                 "🌊 V4: Big Cap", 
                 "🚀 V5: Spekulasi",
-                "🎯 V6: Squeeze & Konsolidasi"
+                "🎯 V6: Squeeze",
+                "🤖 V7: AI Bandar (NEW)"
             ])
 
-            # --- V1: Momentum Breakout (DIPERKETAT: Harus ada skor fundamental teknikal minimal 4 + Liquid) ---
-            cond_v1 = (
-                (df_hasil['Posisi VWAP'] == 'Di Atas VWAP (Kuat)') & 
-                (df_hasil['OBV Trend'] == 'Akumulasi (Naik)') & 
-                (df_hasil['Momentum'] == 'Positif') & 
-                (df_hasil['Karakter Gorengan'].isin(['Solid (Jarang Dibanting)', 'Normal'])) &
-                (df_hasil['Kelas Transaksi'] != 'Gorengan Sepi (< 5M)') &
-                (df_hasil['Total Score'] >= 4)
-            )
+            # --- KONDISI V1 SD V6 (TIDAK DIRUBAH) ---
+            cond_v1 = ((df_hasil['Posisi VWAP'] == 'Di Atas VWAP (Kuat)') & (df_hasil['OBV Trend'] == 'Akumulasi (Naik)') & (df_hasil['Momentum'] == 'Positif') & (df_hasil['Karakter Gorengan'].isin(['Solid (Jarang Dibanting)', 'Normal'])) & (df_hasil['Kelas Transaksi'] != 'Gorengan Sepi (< 5M)') & (df_hasil['Total Score'] >= 4))
             df_v1 = df_hasil[cond_v1].copy()
 
-            # --- V2: Reversal Emas (DIPERKETAT: Harus cukup liquid & tidak sedang terdistribusi) ---
-            cond_v2 = (
-                (df_hasil['Sinyal Cuci Barang'] == 'Jarum Bawah (Sinyal Pantulan Kuat)') & 
-                (df_hasil['Tekanan Bandar'] == 'Dominan Beli (Hajar Kanan)') &
-                (df_hasil['Posisi Entry'].isin(['Dekat Support (Low Risk)', 'Area Tengah'])) &
-                (df_hasil['Kelas Transaksi'] != 'Gorengan Sepi (< 5M)') &
-                (df_hasil['OBV Trend'] != 'Distribusi (Turun)')
-            )
+            cond_v2 = ((df_hasil['Sinyal Cuci Barang'] == 'Jarum Bawah (Sinyal Pantulan Kuat)') & (df_hasil['Tekanan Bandar'] == 'Dominan Beli (Hajar Kanan)') & (df_hasil['Posisi Entry'].isin(['Dekat Support (Low Risk)', 'Area Tengah'])) & (df_hasil['Kelas Transaksi'] != 'Gorengan Sepi (< 5M)') & (df_hasil['OBV Trend'] != 'Distribusi (Turun)'))
             df_v2 = df_hasil[cond_v2].copy()
 
-            # --- V3: Akumulasi Senyap (DIPERKETAT: Harga tidak boleh bocor ke bawah VWAP + OBV wajib naik) ---
-            cond_v3 = (
-                (df_hasil['Kekuatan A/D'] == 'Akumulasi Pro (Smart Money)') & 
-                (df_hasil['Status BB'] == 'Squeeze') & 
-                (df_hasil['RVOL (Anomali Vol)'].isin(['Ledakan Ekstrem (> 300%)', 'Anomali Tinggi (150-300%)'])) &
-                (df_hasil['Change (%)'] < 5.0) &
-                (df_hasil['OBV Trend'] == 'Akumulasi (Naik)') &
-                (df_hasil['Posisi VWAP'] != 'Di Bawah VWAP (Lemah)')
-            )
+            cond_v3 = ((df_hasil['Kekuatan A/D'] == 'Akumulasi Pro (Smart Money)') & (df_hasil['Status BB'] == 'Squeeze') & (df_hasil['RVOL (Anomali Vol)'].isin(['Ledakan Ekstrem (> 300%)', 'Anomali Tinggi (150-300%)'])) & (df_hasil['Change (%)'] < 5.0) & (df_hasil['OBV Trend'] == 'Akumulasi (Naik)') & (df_hasil['Posisi VWAP'] != 'Di Bawah VWAP (Lemah)'))
             df_v3 = df_hasil[cond_v3].copy()
 
-            # --- V4: Big/Mid Cap Flow (DIPERKETAT: Total Score wajib tinggi dan momentum positif) ---
-            cond_v4 = (
-                (df_hasil['Kategori'].isin(['Big Cap (Lapis 1)', 'Mid Cap (Lapis 2)'])) & 
-                (df_hasil['MA Signal'] == 'Uptrend') & 
-                (df_hasil['MACD'].isin(['Strong Bullish', 'Bullish MACD'])) &
-                (df_hasil['OBV Trend'] == 'Akumulasi (Naik)') &
-                (df_hasil['Momentum'] == 'Positif') &
-                (df_hasil['Total Score'] >= 6)
-            )
+            cond_v4 = ((df_hasil['Kategori'].isin(['Big Cap (Lapis 1)', 'Mid Cap (Lapis 2)'])) & (df_hasil['MA Signal'] == 'Uptrend') & (df_hasil['MACD'].isin(['Strong Bullish', 'Bullish MACD'])) & (df_hasil['OBV Trend'] == 'Akumulasi (Naik)') & (df_hasil['Momentum'] == 'Positif') & (df_hasil['Total Score'] >= 6))
             df_v4 = df_hasil[cond_v4].copy()
 
-            # --- V5: Spekulasi Lapis 3 (DIPERKETAT: Wajib dikonfirmasi Akumulasi Bandar atau OBV) ---
-            cond_v5 = (
-                (df_hasil['Kategori'] == 'Small Cap (Lapis 3)') & 
-                (df_hasil['Tekanan Bandar'] == 'Dominan Beli (Hajar Kanan)') & 
-                (df_hasil['Vol Breakout'] == 'Tembus MA20') & 
-                (df_hasil['Kelas Transaksi'].isin(['Sultan (> 50M/hari)', 'Ritel Aktif (5M - 50M)'])) &
-                ((df_hasil['Status Bandar'] == 'Akumulasi Kuat') | (df_hasil['OBV Trend'] == 'Akumulasi (Naik)'))
-            )
+            cond_v5 = ((df_hasil['Kategori'] == 'Small Cap (Lapis 3)') & (df_hasil['Tekanan Bandar'] == 'Dominan Beli (Hajar Kanan)') & (df_hasil['Vol Breakout'] == 'Tembus MA20') & (df_hasil['Kelas Transaksi'].isin(['Sultan (> 50M/hari)', 'Ritel Aktif (5M - 50M)'])) & ((df_hasil['Status Bandar'] == 'Akumulasi Kuat') | (df_hasil['OBV Trend'] == 'Akumulasi (Naik)')))
             df_v5 = df_hasil[cond_v5].copy()
 
-            # --- V6 BARU: MA 5,20,50 + SQUEEZE/SIDEWAYS ---
-            cond_v6 = (
-                # Wajib sedang merapat / konsolidasi
-                ((df_hasil['Status BB'] == 'Squeeze') | (df_hasil['Fase Siklus Bandar'] == 'Sideways')) & 
-                # MA 5, 20, 50 menunjukan persiapan naik / sempurna
-                (df_hasil['Trend MA (5,20,50)'].isin(['Perfect Uptrend (5>20>50)', 'Awal Reversal (5>20)'])) &
-                # Jangan pilih saham terlalu sepi
-                (df_hasil['Kelas Transaksi'] != 'Gorengan Sepi (< 5M)')
-            )
-            if 'Trend MA (5,20,50)' in df_hasil.columns:
-                df_v6 = df_hasil[cond_v6].copy()
-            else:
-                df_v6 = pd.DataFrame() # Fallback jika data belum diupdate
+            cond_v6 = (((df_hasil['Status BB'] == 'Squeeze') | (df_hasil['Fase Siklus Bandar'] == 'Sideways')) & (df_hasil['Trend MA (5,20,50)'].isin(['Perfect Uptrend (5>20>50)', 'Awal Reversal (5>20)'])) & (df_hasil['Kelas Transaksi'] != 'Gorengan Sepi (< 5M)'))
+            df_v6 = df_hasil[cond_v6].copy() if 'Trend MA (5,20,50)' in df_hasil.columns else pd.DataFrame()
 
+            # RENDER TAB V1 SD V6
             with t_v1:
                 st.subheader("⚡ V1: Momentum Breakout")
-                st.write("Saham kuat di atas rata-rata (VWAP) dengan dana segar (OBV). (Diperketat: Liquid & Score >= 4).")
                 render_strategy_table(df_v1, "BSJP_V1_Momentum")
             with t_v2:
                 st.subheader("🎣 V2: Reversal Emas (Tangkap Pantulan)")
-                st.write("Jejak ekor bawah (Hajar Kanan) di area support. (Diperketat: Liquid & OBV tidak turun).")
                 render_strategy_table(df_v2, "BSJP_V2_Reversal")
             with t_v3:
                 st.subheader("🤫 V3: Akumulasi Senyap")
-                st.write("Belum terbang (< 5%), volume meledak. (Diperketat: Posisi wajib aman dari guyuran di atas VWAP).")
                 render_strategy_table(df_v3, "BSJP_V3_Senyap")
             with t_v4:
                 st.subheader("🌊 V4: Big Cap Flow")
-                st.write("Saham besar sedang uptrend kencang. (Diperketat: Score Teknikal >= 6 & Momentum Positif).")
                 render_strategy_table(df_v4, "BSJP_V4_BigCap")
             with t_v5:
                 st.subheader("🚀 V5: Spekulasi Lapis 3 (High Risk)")
-                st.write("Gorengan liquid ditembus gas bandar. (Diperketat: Wajib terkonfirmasi Akumulasi Kuat / OBV Naik).")
                 render_strategy_table(df_v5, "BSJP_V5_Spekulasi")
             with t_v6:
-                st.subheader("🎯 V6: Squeeze & Konsolidasi (New!)")
-                st.write("Mencari The Sleeping Dragon! Saham sedang Sideways atau Bollinger Bands menyempit (Squeeze), namun **Kombinasi MA 5, 20, 50** sudah mulai menyilang tajam ke atas (Awal Reversal) atau sudah dalam formasi Perfect Uptrend siap meledak.")
+                st.subheader("🎯 V6: Squeeze & Konsolidasi")
                 render_strategy_table(df_v6, "BSJP_V6_SqueezeMA")
+            
+            # RENDER TAB V7: AI PERSONA BANDAR
+            with t_v7:
+                st.subheader("🤖 V7: AI Persona Bandar (Eksklusif)")
+                st.markdown("Pilih satu saham dari screener hari ini. AI Gemini akan menyelam ke dalam folder `Arsip_Data_Harian`, membaca jejak rekam pergerakan saham tersebut selama beberapa hari terakhir, dan memberikan *insight* bergaya bandar sungguhan.")
+                
+                if not GEMINI_API_KEY:
+                    st.error("⚠️ Peringatan: Kunci API Gemini belum dipasang. V7 tidak akan berfungsi.")
+                
+                # Biarkan user memilih ticker dari saham yang terfilter atau semua saham
+                daftar_pilihan = sorted(df_hasil['Ticker'].tolist())
+                ticker_pilihan = st.selectbox("🎯 Pilih Kode Saham untuk Dianalisa AI:", daftar_pilihan)
+                
+                if st.button(f"🔮 Minta Bocoran Bandar untuk {ticker_pilihan}", type="primary"):
+                    with st.spinner(f"Menyedot data historis {ticker_pilihan} dari folder arsip dan menghubungi AI..."):
+                        # Data Hari Ini
+                        data_hari_ini = df_hasil[df_hasil['Ticker'] == ticker_pilihan].iloc[0]
+                        harga_now = data_hari_ini['Harga (Rp)']
+                        bandar_now = data_hari_ini['Status Bandar']
+                        skor_now = data_hari_ini.get('Total Score', 0)
+                        
+                        # Data Historis (dikompresi)
+                        ringkasan = get_historical_summary(ticker_pilihan)
+                        
+                        if not ringkasan:
+                            st.warning("⚠️ Folder 'Arsip_Data_Harian' belum memiliki data lama untuk saham ini. AI terpaksa hanya menganalisa berdasarkan data detik ini saja.")
+                            ringkasan = "Belum ada riwayat arsip harian yang tersimpan."
+                            
+                        # Eksekusi AI
+                        hasil_ai = analisa_bandar_ai(ticker_pilihan, ringkasan, harga_now, bandar_now, skor_now)
+                        
+                        st.markdown("---")
+                        st.markdown(f"### 🗣️ Hasil Sadapan Percakapan Bandar [{ticker_pilihan}]:")
+                        st.info(hasil_ai)
 else:
     st.error("Silakan jalankan `update_data.py` terlebih dahulu di terminal untuk memuat data!")
