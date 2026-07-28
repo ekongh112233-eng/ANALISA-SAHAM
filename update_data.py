@@ -14,6 +14,11 @@ from datetime import datetime
 FILE_SAHAM = "saham.txt"
 FILE_HASIL = "hasil_screener.csv"
 LOCK_FILE = "sedang_update.lock"
+DIR_ARSIP = "Arsip_Data_Harian" # Folder khusus untuk arsip
+
+# Buat folder arsip jika belum ada
+if not os.path.exists(DIR_ARSIP):
+    os.makedirs(DIR_ARSIP)
 
 def get_safe_session():
     session = requests.Session()
@@ -106,7 +111,6 @@ def hitung_semua_indikator(df_saham):
     elif ma_5 > ma_20: ma_cross = "Bullish"
     else: ma_cross = "Bearish"
 
-    # FITUR BARU: Trend MA Gabungan (5, 20, 50)
     if ma_5 > ma_20 and ma_20 > ma_50: trend_ma_gabungan = "Perfect Uptrend (5>20>50)"
     elif ma_5 > ma_20 and ma_20 <= ma_50: trend_ma_gabungan = "Awal Reversal (5>20)"
     elif ma_5 < ma_20 and ma_20 < ma_50: trend_ma_gabungan = "Strong Downtrend (5<20<50)"
@@ -280,7 +284,7 @@ def hitung_semua_indikator(df_saham):
         "Harga (Rp)": close_today, "Harga MA20": int(ma_20), "Support": int(support_20), "Resistance": int(resist_20),
         "Change (%)": change_pct, "Volume": vol_today, "Vol Breakout": vol_breakout, "RSI (14D)": rsi,
         "Momentum": momentum, "MA Signal": ma_signal, "MA Cross": ma_cross, "MACD": status_macd,
-        "Trend MA (5,20,50)": trend_ma_gabungan, # DATA BARU
+        "Trend MA (5,20,50)": trend_ma_gabungan,
         "Status Bandar": status_bandar, "OBV Trend": obv_trend, "Status Gap": status_gap, "Tekanan Bandar": tekanan, 
         "Status BB": status_bb, "Risiko": risiko,
         "Pola Candle": pola_candle, "Posisi Entry": posisi_entry,
@@ -299,6 +303,12 @@ def main():
     with open(LOCK_FILE, "w") as f: f.write("SEDANG PROSES")
 
     try:
+        # Konfigurasi Waktu untuk File Arsip dan Kolom Waktu Update
+        now = datetime.now()
+        tanggal_hari_ini = now.strftime("%Y-%m-%d")
+        waktu_sekarang = now.strftime("%H:%M")
+        file_arsip_harian = os.path.join(DIR_ARSIP, f"screener_{tanggal_hari_ini}.csv")
+
         print("⏳ Memulai pembaruan data saham (Ultimate Diagnostic Mode)...")
         daftar_saham = load_tickers()
         if not daftar_saham: return
@@ -346,11 +356,11 @@ def main():
                         elif per > 25 or pbv > 3.0: valuasi = "Overvalued (Mahal)"
                         else: valuasi = "Fair Value (Wajar)"
                         
-                        data_akhir = {"Ticker": ticker, "Kategori": kat, "Valuasi": valuasi, "PER (x)": per, "PBV (x)": pbv}
+                        data_akhir = {"Waktu Update": waktu_sekarang, "Ticker": ticker, "Kategori": kat, "Valuasi": valuasi, "PER (x)": per, "PBV (x)": pbv}
                         data_akhir.update(ind)
                         data_akhir.update({
                             "Total Score": score, "Rekomendasi": rekomendasi, 
-                            "Status Akuisisi": "TIDAK ADA", "Terakhir Update": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            "Status Akuisisi": "TIDAK ADA", "Terakhir Update": now.strftime("%Y-%m-%d %H:%M:%S")
                         })
                         hasil.append(data_akhir)
             except Exception as e:
@@ -359,8 +369,16 @@ def main():
 
         if hasil:
             df_hasil = pd.DataFrame(hasil)
+            
+            # 1. Simpan Data Utama (Overwrite untuk Web)
             df_hasil.to_csv(FILE_HASIL, index=False)
-            print(f"✅ Selesai! Data {len(hasil)} saham berhasil diperbarui.")
+            
+            # 2. Simpan Data Arsip (Append ke bawah untuk Backtesting nanti)
+            file_exists = os.path.isfile(file_arsip_harian)
+            df_hasil.to_csv(file_arsip_harian, mode='a', header=not file_exists, index=False)
+            
+            print(f"✅ Selesai! Data {len(hasil)} saham berhasil diperbarui di Web.")
+            print(f"📁 Log aktivitas tersimpan di: {file_arsip_harian}")
         else:
             print("\n⚠️ GAGAL TOTAL: Proses selesai namun list hasil kosong.")
     finally:
