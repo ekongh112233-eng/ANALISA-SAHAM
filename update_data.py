@@ -303,10 +303,11 @@ def main():
     with open(LOCK_FILE, "w") as f: f.write("SEDANG PROSES")
 
     try:
-        # Konfigurasi Waktu untuk File Arsip dan Kolom Waktu Update
+        # Konfigurasi Waktu
         now = datetime.now()
         tanggal_hari_ini = now.strftime("%Y-%m-%d")
         waktu_sekarang = now.strftime("%H:%M")
+        jam_sekarang = now.hour # Mengambil angka jam saat ini (0-23)
         file_arsip_harian = os.path.join(DIR_ARSIP, f"screener_{tanggal_hari_ini}.csv")
 
         print("⏳ Memulai pembaruan data saham (Ultimate Diagnostic Mode)...")
@@ -370,15 +371,17 @@ def main():
         if hasil:
             df_hasil = pd.DataFrame(hasil)
             
-            # 1. Simpan Data Utama (Overwrite untuk Web)
+            # 1. SELALU Simpan Data Utama (Overwrite untuk Web)
             df_hasil.to_csv(FILE_HASIL, index=False)
             
-            # 2. Simpan Data Arsip (Append ke bawah untuk Backtesting nanti)
-            file_exists = os.path.isfile(file_arsip_harian)
-            df_hasil.to_csv(file_arsip_harian, mode='a', header=not file_exists, index=False)
-            
-            print(f"✅ Selesai! Data {len(hasil)} saham berhasil diperbarui di Web.")
-            print(f"📁 Log aktivitas tersimpan di: {file_arsip_harian}")
+            # 2. LOGIKA JAM PINTAR (Hanya simpan arsip antara jam 09:00 s/d 16:59)
+            if 9 <= jam_sekarang < 17:
+                file_exists = os.path.isfile(file_arsip_harian)
+                df_hasil.to_csv(file_arsip_harian, mode='a', header=not file_exists, index=False)
+                print(f"✅ Selesai! Data Web diperbarui & Diarsipkan ke: {file_arsip_harian}")
+            else:
+                print(f"✅ Selesai! Data Web diperbarui. (Mode Malam 🌙: Pengarsipan dinonaktifkan agar data historis tetap bersih).")
+                
         else:
             print("\n⚠️ GAGAL TOTAL: Proses selesai namun list hasil kosong.")
     finally:
