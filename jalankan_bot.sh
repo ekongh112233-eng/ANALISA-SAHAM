@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Masuk ke folder repositori
-cd /home/kaltaraid/Documents/SAHAM-SCREENING
+cd /home/kaltaraid/Documents/ANALISA-SAHAM/
 
 # Jalankan skrip Python
 /usr/bin/python update_data.py
