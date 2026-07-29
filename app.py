@@ -551,8 +551,14 @@ if not df_hasil.empty:
             cond_v3 = ((df_hasil['Kekuatan A/D'] == 'Akumulasi Pro (Smart Money)') & (df_hasil['Status BB'] == 'Squeeze') & (df_hasil['RVOL (Anomali Vol)'].isin(['Ledakan Ekstrem (> 300%)', 'Anomali Tinggi (150-300%)'])) & (df_hasil['Change (%)'] < 5.0) & (df_hasil['OBV Trend'] == 'Akumulasi (Naik)') & (df_hasil['Posisi VWAP'] != 'Di Bawah VWAP (Lemah)'))
             df_v3 = df_hasil[cond_v3].copy()
 
-            cond_v4 = ((df_hasil['Kategori'].isin(['Big Cap (Lapis 1)', 'Mid Cap (Lapis 2)'])) & (df_hasil['MA Signal'] == 'Uptrend') & (df_hasil['MACD'].isin(['Strong Bullish', 'Bullish MACD'])) & (df_hasil['OBV Trend'] == 'Akumulasi (Naik)') & (df_hasil['Momentum'] == 'Positif') & (df_hasil['Total Score'] >= 6))
-            df_v4 = df_hasil[cond_v4].copy()
+            cond_v4 = (
+                (df_hasil['Kategori'].isin(['Big Cap (Lapis 1)', 'Mid Cap (Lapis 2)'])) & 
+                ((df_hasil['Status BB'] == 'Squeeze') | (df_hasil['Fase Siklus Bandar'] == 'Sideways')) & 
+                (df_hasil['Trend MA (5,20,50)'].isin(['Perfect Uptrend (5>20>50)', 'Awal Reversal (5>20)'])) & 
+                (df_hasil['OBV Trend'] == 'Akumulasi (Naik)') & 
+                (df_hasil['Total Score'] >= 6)
+            )
+            df_v4 = df_hasil[cond_v4].copy()  # <--- PASTIKAN BARIS INI ADA
 
             cond_v5 = ((df_hasil['Kategori'] == 'Small Cap (Lapis 3)') & (df_hasil['Tekanan Bandar'] == 'Dominan Beli (Hajar Kanan)') & (df_hasil['Vol Breakout'] == 'Tembus MA20') & (df_hasil['Kelas Transaksi'].isin(['Sultan (> 50M/hari)', 'Ritel Aktif (5M - 50M)'])) & ((df_hasil['Status Bandar'] == 'Akumulasi Kuat') | (df_hasil['OBV Trend'] == 'Akumulasi (Naik)')))
             df_v5 = df_hasil[cond_v5].copy()
@@ -571,8 +577,8 @@ if not df_hasil.empty:
                 st.subheader("🤫 V3: Akumulasi Senyap")
                 render_strategy_table(df_v3, "BSJP_V3_Senyap")
             with t_v4:
-                st.subheader("🌊 V4: Big Cap Flow")
-                render_strategy_table(df_v4, "BSJP_V4_BigCap")
+                st.subheader("🌊 V4: Big Cap Squeeze (Akumulasi Tenang)")
+                render_strategy_table(df_v4, "BSJP_V4_BigCapSqueeze")
             with t_v5:
                 st.subheader("🚀 V5: Spekulasi Lapis 3 (High Risk)")
                 render_strategy_table(df_v5, "BSJP_V5_Spekulasi")
