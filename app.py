@@ -19,18 +19,33 @@ st.set_page_config(page_title="Screener Saham IHSG", layout="wide", initial_side
 # KONFIGURASI API KEY GEMINI (SANGAT AMAN)
 try:
     # 1. Coba ambil dari rahasia server Streamlit Cloud
-    GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
+    GEMINI_API_KEY = st.secrets["AQ.Ab8RN6_JTtsFBiy08CPY_LfM2APjKMFigea_yJKHH8q6sjusPDg9A"]
 except:
     # 2. Jika gagal (berarti sedang di laptop lokal), ambil dari file .env
     try:
         from dotenv import load_dotenv
         load_dotenv()
-        GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+        GEMINI_API_KEY = os.getenv("AQ.Ab8RN6_JTtsFBiy08CPY_LfM2APjKMFigea_yJKHH8q6sjusPDg9A")
     except:
         GEMINI_API_KEY = None
 
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
+
+# ==========================================
+# MASUKKAN LANGKAH 1 TEPAT DI SINI
+# ==========================================
+@st.cache_data
+def ambil_daftar_ai():
+    try:
+        daftar = []
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                daftar.append(m.name.replace('models/', ''))
+        return daftar
+    except Exception:
+        return ['gemini-pro', 'gemini-1.5-flash'] # Cadangan jika gagal
+# ==========================================
 
 st.markdown("""
     <style>
@@ -208,9 +223,9 @@ def get_historical_summary(ticker):
         
     return summary_text
 
-def analisa_bandar_ai(ticker, summary_text, harga_sekarang, status_bandar_sekarang, total_score):
+def analisa_bandar_ai(ticker, summary_text, harga_sekarang, status_bandar_sekarang, total_score, pilihan_ai):
     if not GEMINI_API_KEY:
-        return "❌ Kunci API Gemini belum dikonfigurasi. Pastikan file `.env` (lokal) atau Streamlit Secrets sudah terpasang."
+        return "❌ Kunci API Gemini belum dipasang."
     
     prompt = f"""
     Bertindaklah sebagai "Bandar Besar Pasar Modal IHSG" yang pragmatis, kejam, dan sangat TO-THE-POINT.
@@ -227,57 +242,34 @@ def analisa_bandar_ai(ticker, summary_text, harga_sekarang, status_bandar_sekara
     ATURAN MUTLAK (JIKA DILANGGAR, KAMU GAGAL):
     1. DILARANG KERAS memunculkan proses berpikir (thinking process), draf, atau basa-basi. 
     2. JANGAN mengulang instruksi prompt. LANGSUNG cetak hasilnya menggunakan template di bawah sejak karakter pertama.
-    3. Wajib berikan estimasi ANGKA HARGA masuk, target jual (TP), dan batas kabur (SL) dengan mengkalkulasi logika support/resistance terdekat dari harga Rp {harga_sekarang}.
+    3. Wajib berikan estimasi ANGKA HARGA masuk, target jual (TP), dan batas kabur (SL).
 
     TEMPLATE JAWABAN WAJIB:
     
     **🕵️ Niat Asli Bandar:**
-    [Tulis 1 kalimat tajam: Apa manuver rahasiamu hari ini? (Misal: "Gue lagi akum senyap" atau "Gue mark-up siap guyur")]
+    [Manuver rahasiamu hari ini]
 
     **⚔️ Peta Mekanik:**
-    [Tulis 1 kalimat: Siapa pemenang hari ini antara Smart Money vs Ritel?]
+    [Siapa pemenang hari ini antara Smart Money vs Ritel?]
 
     **🎯 EKSEKUSI BSJP:**
-    * **Keputusan:** [Pilih satu: SIKAT (Beli) / ANTRI (Wait & See) / SKIP (Tinggalkan)]
-    * **Taktik Beli:** [Cara belinya. Misal: HAKA Hajar Kanan di {harga_sekarang} ATAU antre bawah di (estimasi harga)]
-    * **Target Guyur (Jual):** [Estimasi harga TP / naik berapa % besok pagi]
-    * **Batas Kabur (Cut Loss):** [Estimasi harga SL jika ternyata bandar banting harga]
-    * **Pesan Bandar:** [1 kalimat peringatan kejam untuk psikologi trader]
+    * **Keputusan:** [Beli / Wait & See / Skip]
+    * **Taktik Beli:** [Cara belinya dan estimasi harganya]
+    * **Target Guyur (Jual):** [Estimasi harga TP]
+    * **Batas Kabur (Cut Loss):** [Estimasi harga SL]
+    * **Pesan Bandar:** [Peringatan psikologi]
     """
     
     try:
-        # 1. Skrip bertanya ke Google: "Tolong berikan daftar semua AI yang aktif untuk akun saya"
-        model_tersedia = []
-        for m in genai.list_models():
-            # Filter hanya AI yang bisa membaca dan membalas teks (generateContent)
-            if 'generateContent' in m.supported_generation_methods:
-                model_tersedia.append(m.name)
+        # Menggunakan AI sesuai yang Anda pilih di Dropdown
+        model = genai.GenerativeModel(pilihan_ai)
+        response = model.generate_content(prompt)
         
-        # 2. Jika ternyata kunci API Anda tidak diberi akses AI sama sekali oleh Google
-        if not model_tersedia:
-            return "❌ Gagal: Akun Google API Anda saat ini tidak memiliki akses ke model AI teks apa pun."
-            
-        # 3. AUTO-HUNTING: Skrip akan mencoba satu per satu AI yang diberikan oleh server Google
-        for nama_ai in model_tersedia:
-            try:
-                model = genai.GenerativeModel(nama_ai)
-                response = model.generate_content(prompt)
-                
-                # Jika berhasil, berikan notifikasi nama AI yang berjasa di paling bawah
-                nama_bersih = nama_ai.replace("models/", "") # Membersihkan teks "models/" agar rapi
-                catatan = f"\n\n---\n🤖 *Sistem Pencari Otomatis: Analisis ini berhasil dijawab oleh AI **{nama_bersih}***"
-                
-                return response.text + catatan
-                
-            except Exception as e:
-                # Jika AI ini gagal/error, abaikan dan lanjut ke AI berikutnya di daftar Google
-                continue
-                
-        # Jika loop selesai tapi semua AI di daftar Google menolak menjawab
-        return "❌ Waduh, semua AI yang tersedia di server Google sedang menolak memproses data. Mungkin kuota habis atau server sibuk."
+        catatan = f"\n\n---\n🎯 *Dianalisa khusus menggunakan mesin: **{pilihan_ai}***"
+        return response.text + catatan
         
     except Exception as e:
-        return f"❌ Gagal menghubungi server Google untuk meminta daftar AI. Error: {e}"
+        return f"❌ Gagal memproses dengan {pilihan_ai}. AI ini mungkin sedang sibuk atau tidak mendukung instruksi. Error: {e}"
 
 # ==========================================
 # SECTION 4: HEADER & SIDEBAR
@@ -639,35 +631,51 @@ if not df_hasil.empty:
             # RENDER TAB V7: AI PERSONA BANDAR
             with t_v7:
                 st.subheader("🤖 V7: AI Persona Bandar (Eksklusif)")
-                st.markdown("Pilih satu saham dari screener hari ini. AI Gemini akan menyelam ke dalam folder `Arsip_Data_Harian`, membaca jejak rekam pergerakan saham tersebut selama beberapa hari terakhir, dan memberikan *insight* bergaya bandar sungguhan.")
+                st.markdown("Pilih saham dan **mesin AI** yang ingin Anda uji coba untuk membedah data bandar hari ini.")
                 
-                if not GEMINI_API_KEY:
-                    st.error("⚠️ Peringatan: Kunci API Gemini belum dipasang. V7 tidak akan berfungsi.")
+                # 1. Panggil daftar AI
+                daftar_mesin = ambil_daftar_ai()
                 
-                # Biarkan user memilih ticker dari saham yang terfilter atau semua saham
-                daftar_pilihan = sorted(df_hasil['Ticker'].tolist())
-                ticker_pilihan = st.selectbox("🎯 Pilih Kode Saham untuk Dianalisa AI:", daftar_pilihan)
+                # 2. Buat kolom sejajar agar rapi
+                col_saham, col_ai = st.columns(2)
+                with col_saham:
+                    saham_pilihan = st.selectbox("Pilih Kode Saham:", df_hasil['Ticker'].unique(), key='ai_ticker')
+                with col_ai:
+                    ai_pilihan = st.selectbox("🧠 Pilih Mesin AI:", daftar_mesin, key='ai_mesin')
                 
-                if st.button(f"🔮 Minta Bocoran Bandar untuk {ticker_pilihan}", type="primary"):
-                    with st.spinner(f"Menyedot data historis {ticker_pilihan} dari folder arsip dan menghubungi AI..."):
-                        # Data Hari Ini
-                        data_hari_ini = df_hasil[df_hasil['Ticker'] == ticker_pilihan].iloc[0]
-                        harga_now = data_hari_ini['Harga (Rp)']
-                        bandar_now = data_hari_ini['Status Bandar']
-                        skor_now = data_hari_ini.get('Total Score', 0)
-                        
-                        # Data Historis (dikompresi)
-                        ringkasan = get_historical_summary(ticker_pilihan)
-                        
-                        if not ringkasan:
-                            st.warning("⚠️ Folder 'Arsip_Data_Harian' belum memiliki data lama untuk saham ini. AI terpaksa hanya menganalisa berdasarkan data detik ini saja.")
-                            ringkasan = "Belum ada riwayat arsip harian yang tersimpan."
+if st.button(f"🔮 Minta Bocoran Bandar untuk {saham_pilihan}"):
+                    if saham_pilihan:
+                        with st.spinner(f"Mesin {ai_pilihan} sedang menyadap pergerakan bandar {saham_pilihan}..."):
                             
-                        # Eksekusi AI
-                        hasil_ai = analisa_bandar_ai(ticker_pilihan, ringkasan, harga_now, bandar_now, skor_now)
-                        
-                        st.markdown("---")
-                        st.markdown(f"### 🗣️ Hasil Sadapan Percakapan Bandar [{ticker_pilihan}]:")
-                        st.info(hasil_ai)
+                            # 1. AMBIL DATA DETIK INI DARI TABEL UTAMA
+                            data_saham = df_hasil[df_hasil['Ticker'] == saham_pilihan].iloc[0]
+                            harga_akhir = data_saham['Close']
+                            
+                            # Gunakan try-except untuk mencegah error jika nama kolom berbeda
+                            status_bandar_akhir = data_saham.get('Fase Siklus Bandar', 'Normal')
+                            skor_akhir = data_saham.get('Total Score', 0)
+                            
+                            # 2. BACA DATA ARSIP HISTORIS DARI LAPTOP
+                            import glob
+                            import os
+                            import pandas as pd
+                            
+                            # Cari file CSV saham tersebut di dalam folder arsip
+                            file_arsip = glob.glob(f"Arsip_Data_Harian/*{saham_pilihan}*.csv")
+                            
+                            if file_arsip:
+                                # Ambil file paling baru, dan baca 5 baris terakhir (5 hari terakhir)
+                                file_terbaru = max(file_arsip, key=os.path.getctime)
+                                df_hist = pd.read_csv(file_terbaru).tail(5)
+                                teks_ringkasan = df_hist.to_string(index=False)
+                            else:
+                                teks_ringkasan = "Data historis tidak ditemukan di arsip."
+                            
+                            # 3. KIRIM DATA KE AI PILIHAN ANDA
+                            hasil_ai = analisa_bandar_ai(saham_pilihan, teks_ringkasan, harga_akhir, status_bandar_akhir, skor_akhir, ai_pilihan)
+                            
+                            # 4. TAMPILKAN HASILNYA DI WEB
+                            st.markdown("### 🗣️ Hasil Sadapan Percakapan Bandar:")
+                            st.info(hasil_ai)
 else:
     st.error("Silakan jalankan `update_data.py` terlebih dahulu di terminal untuk memuat data!")
