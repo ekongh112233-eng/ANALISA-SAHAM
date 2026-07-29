@@ -212,9 +212,6 @@ def analisa_bandar_ai(ticker, summary_text, harga_sekarang, status_bandar_sekara
     if not GEMINI_API_KEY:
         return "❌ Kunci API Gemini belum dikonfigurasi. Pastikan file `.env` (lokal) atau Streamlit Secrets sudah terpasang."
     
-    # Menggunakan model flash agar respons kilat
-    model = genai.GenerativeModel('gemini-1.5-flash') 
-    
     prompt = f"""
     Kamu adalah seorang "Bandar Besar Pasar Modal IHSG" yang sangat manipulatif, cerdas, kalkulatif, dan blak-blakan. 
     Tugasmu adalah menganalisa jejak rekam pergerakan saham {ticker} yang kuberikan di bawah ini.
@@ -236,11 +233,31 @@ def analisa_bandar_ai(ticker, summary_text, harga_sekarang, status_bandar_sekara
     3. Kesimpulan tajam: Untuk trader ritel yang mau "Curi Start" Beli Sore Jual Pagi (BSJP) hari ini, kamu suruh mereka sikat hajar kanan, atau lari menjauh?
     """
     
-    try:
-        response = model.generate_content(prompt)
-        return response.text
-    except Exception as e:
-        return f"❌ Waduh, terjadi kesalahan saat menghubungi AI (mungkin server Google sibuk atau kuota limit): {e}"
+    # 💡 SISTEM AUTO-FALLBACK: Daftar model AI yang akan dicoba berurutan
+    daftar_model = [
+        'gemini-1.5-flash', 
+        'gemini-1.5-pro', 
+        'gemini-pro', 
+        'gemini-1.0-pro'
+    ]
+    
+    for nama_model in daftar_model:
+        try:
+            model = genai.GenerativeModel(nama_model)
+            response = model.generate_content(prompt)
+            
+            # Jika berhasil mendapat jawaban, tambahkan catatan (notif) di bawah teks
+            hasil_teks = response.text
+            catatan_kaki = f"\n\n---\n🤖 *Catatan: Analisis ini berhasil dijawab menggunakan mesin AI **{nama_model}***"
+            
+            return hasil_teks + catatan_kaki
+            
+        except Exception as e:
+            # Jika model ini gagal/error, abaikan dan putar ulang loop untuk mencoba model berikutnya
+            continue
+            
+    # Jika loop selesai tapi SEMUA model gagal
+    return "❌ Waduh, terjadi kesalahan parah. Semua mesin AI dari Google sedang sibuk, gangguan, atau tidak mengenali kuncinya. Silakan coba beberapa saat lagi."
 
 # ==========================================
 # SECTION 4: HEADER & SIDEBAR
