@@ -7,3 +7,4 @@ matplotlib
 plotly
 google-generativeai
 python-dotenv
+openpyxl

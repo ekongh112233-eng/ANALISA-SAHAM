@@ -1,3 +1,4 @@
+import io
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -363,7 +364,19 @@ def render_strategy_table(df_subset, file_name):
         st.dataframe(tabel_jadi, use_container_width=True, hide_index=True)
 
         c1, c2 = st.columns([1, 1])
-        c1.download_button(f"📥 Download {file_name} (CSV)", df_subset[kolom_tampil].to_csv(index=False).encode('utf-8'), f"{file_name}.csv", "text/csv", key=f"dl_{file_name}")
+        # Membuat file Excel lengkap dengan warnanya ke dalam memori
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+            tabel_jadi.to_excel(writer, index=False, sheet_name='Screener')
+        
+        # Membuat tombol download Excel
+        c1.download_button(
+            label=f"📥 Download {file_name} (Excel)",
+            data=buffer.getvalue(),
+            file_name=f"{file_name}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key=f"dl_{file_name}"
+        )
         c2.code(", ".join(df_subset["Ticker"].tolist()), language="text")
     else:
         st.info("🔍 Belum ada pergerakan saham yang memenuhi kriteria strategi ini pada sesi saat ini.")
