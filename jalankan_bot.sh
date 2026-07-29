@@ -9,5 +9,6 @@ cd /home/kaltaraid/Documents/ANALISA-SAHAM/
 # Simpan dan kirim ke GitHub
 git pull origin main
 git add hasil_screener.csv
-git commit -m "Auto-update dari Laptop" || echo "Tidak ada perubahan"
+git add Arsip_Data_Harian/
+git commit -m "Auto-update data dan arsip harian dari Laptop" || echo "Tidak ada perubahan"
 git push
