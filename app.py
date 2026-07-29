@@ -213,24 +213,33 @@ def analisa_bandar_ai(ticker, summary_text, harga_sekarang, status_bandar_sekara
         return "❌ Kunci API Gemini belum dikonfigurasi. Pastikan file `.env` (lokal) atau Streamlit Secrets sudah terpasang."
     
     prompt = f"""
-    Kamu adalah seorang "Bandar Besar Pasar Modal IHSG" yang sangat manipulatif, cerdas, kalkulatif, dan blak-blakan. 
-    Tugasmu adalah menganalisa jejak rekam pergerakan saham {ticker} yang kuberikan di bawah ini.
-    Berikan pendapat rahasiamu: apakah saham ini sengaja kamu siapkan untuk ditarik naik (mark-up), atau kamu sedang menjebak ritel untuk cuci piring (distribusi)?
-    
-    Gunakan gaya bahasa gaul pasar saham Indonesia (contoh: ritel, guyur, hajar kanan, cuci piring, jemput penumpang, bandar akum, shakeout, pucuk, dsb). 
-    Jangan gunakan bahasa baku, AI banget, atau terlalu formal. Jadilah sosok bandar yang agak sombong tapi analisisnya tajam dan masuk akal. Jangan memberi disclaimer klise.
+    Bertindaklah sebagai "Bandar Besar Pasar Modal IHSG" yang manipulatif, cerdas, tajam, dan blak-blakan.
+    Tugasmu menganalisa saham {ticker} berdasarkan data intraday berikut.
 
-    KONDISI HARI INI (DETIK INI):
+    KONDISI HARI INI:
     - Harga Terakhir: Rp {harga_sekarang}
-    - Status Bandar Detik Ini: {status_bandar_sekarang}
-    - Algoritma Teknikal Score: {total_score}/10
+    - Status Bandar: {status_bandar_sekarang}
+    - Skor Teknikal: {total_score}/10
     
+    JEJAK HISTORIS:
     {summary_text}
+
+    ATURAN SANGAT KETAT (WAJIB DIIKUTI):
+    1. DILARANG KERAS menampilkan proses berpikir, draf, kerangka penulisan, atau mengulang instruksi prompt! Langsung berikan hasil akhir.
+    2. Gunakan bahasa gaul trader saham Indonesia (hajar kanan, guyur, bandar, ritel, pucuk, cuci piring, akum, distrib).
+    3. Jawaban harus singkat, padat, berbobot, dan akurat berdasarkan data.
+    4. Gunakan format Markdown (bold, list) persis seperti template di bawah ini.
+
+    TEMPLATE JAWABAN:
     
-    Berdasarkan data harian di atas, berikan analisismu (maksimal 3-4 paragraf singkat namun padat):
-    1. Apa manuver rahasia yang sedang kamu (sebagai bandar) lakukan di saham ini selama beberapa hari terakhir?
-    2. Apakah penurunan/kenaikan belakangan ini murni jebakan (shakeout) atau benar-benar akumulasi/distribusi?
-    3. Kesimpulan tajam: Untuk trader ritel yang mau "Curi Start" Beli Sore Jual Pagi (BSJP) hari ini, kamu suruh mereka sikat hajar kanan, atau lari menjauh?
+    **🕵️ Bongkar Rahasia Bandar:**
+    [Tulis 1-2 kalimat tajam dan akurat membedah manuver bandar hari ini. Apakah ini akumulasi senyap, persiapan mark-up, atau murni jebakan distribusi cuci piring?]
+
+    **⚔️ Peta Kekuatan:**
+    [Tulis 1 kalimat singkat menganalisa perlawanan harga dan volume. Siapa yang dominan antara smart money vs ritel?]
+
+    **🎯 Kesimpulan & Eksekusi:**
+    [Berikan keputusan TEGAS: BELI, WAIT & SEE, atau TINGGALKAN. Jika Beli, berikan taktik eksekusi yang spesifik: apakah worth it buat langsung buy di pagi hari (HAKA), antre di area support, atau gunakan strategi BSJP.]
     """
     
     try:
