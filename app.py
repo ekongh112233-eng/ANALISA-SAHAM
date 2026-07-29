@@ -213,10 +213,10 @@ def analisa_bandar_ai(ticker, summary_text, harga_sekarang, status_bandar_sekara
         return "❌ Kunci API Gemini belum dikonfigurasi. Pastikan file `.env` (lokal) atau Streamlit Secrets sudah terpasang."
     
     prompt = f"""
-    Bertindaklah sebagai "Bandar Besar Pasar Modal IHSG" yang manipulatif, cerdas, tajam, dan blak-blakan.
-    Tugasmu menganalisa saham {ticker} berdasarkan data intraday berikut.
+    Bertindaklah sebagai "Bandar Besar Pasar Modal IHSG" yang pragmatis, kejam, dan sangat TO-THE-POINT.
+    Trader ritel ini sedang kehabisan waktu karena market hampir tutup (jam 15:40), berikan analisa KILAT untuk saham {ticker}.
 
-    KONDISI HARI INI:
+    DATA SAHAM {ticker}:
     - Harga Terakhir: Rp {harga_sekarang}
     - Status Bandar: {status_bandar_sekarang}
     - Skor Teknikal: {total_score}/10
@@ -224,22 +224,25 @@ def analisa_bandar_ai(ticker, summary_text, harga_sekarang, status_bandar_sekara
     JEJAK HISTORIS:
     {summary_text}
 
-    ATURAN SANGAT KETAT (WAJIB DIIKUTI):
-    1. DILARANG KERAS menampilkan proses berpikir, draf, kerangka penulisan, atau mengulang instruksi prompt! Langsung berikan hasil akhir.
-    2. Gunakan bahasa gaul trader saham Indonesia (hajar kanan, guyur, bandar, ritel, pucuk, cuci piring, akum, distrib).
-    3. Jawaban harus singkat, padat, berbobot, dan akurat berdasarkan data.
-    4. Gunakan format Markdown (bold, list) persis seperti template di bawah ini.
+    ATURAN MUTLAK (JIKA DILANGGAR, KAMU GAGAL):
+    1. DILARANG KERAS memunculkan proses berpikir (thinking process), draf, atau basa-basi. 
+    2. JANGAN mengulang instruksi prompt. LANGSUNG cetak hasilnya menggunakan template di bawah sejak karakter pertama.
+    3. Wajib berikan estimasi ANGKA HARGA masuk, target jual (TP), dan batas kabur (SL) dengan mengkalkulasi logika support/resistance terdekat dari harga Rp {harga_sekarang}.
 
-    TEMPLATE JAWABAN:
+    TEMPLATE JAWABAN WAJIB:
     
-    **🕵️ Bongkar Rahasia Bandar:**
-    [Tulis 1-2 kalimat tajam dan akurat membedah manuver bandar hari ini. Apakah ini akumulasi senyap, persiapan mark-up, atau murni jebakan distribusi cuci piring?]
+    **🕵️ Niat Asli Bandar:**
+    [Tulis 1 kalimat tajam: Apa manuver rahasiamu hari ini? (Misal: "Gue lagi akum senyap" atau "Gue mark-up siap guyur")]
 
-    **⚔️ Peta Kekuatan:**
-    [Tulis 1 kalimat singkat menganalisa perlawanan harga dan volume. Siapa yang dominan antara smart money vs ritel?]
+    **⚔️ Peta Mekanik:**
+    [Tulis 1 kalimat: Siapa pemenang hari ini antara Smart Money vs Ritel?]
 
-    **🎯 Kesimpulan & Eksekusi:**
-    [Berikan keputusan TEGAS: BELI, WAIT & SEE, atau TINGGALKAN. Jika Beli, berikan taktik eksekusi yang spesifik: apakah worth it buat langsung buy di pagi hari (HAKA), antre di area support, atau gunakan strategi BSJP.]
+    **🎯 EKSEKUSI BSJP:**
+    * **Keputusan:** [Pilih satu: SIKAT (Beli) / ANTRI (Wait & See) / SKIP (Tinggalkan)]
+    * **Taktik Beli:** [Cara belinya. Misal: HAKA Hajar Kanan di {harga_sekarang} ATAU antre bawah di (estimasi harga)]
+    * **Target Guyur (Jual):** [Estimasi harga TP / naik berapa % besok pagi]
+    * **Batas Kabur (Cut Loss):** [Estimasi harga SL jika ternyata bandar banting harga]
+    * **Pesan Bandar:** [1 kalimat peringatan kejam untuk psikologi trader]
     """
     
     try:
