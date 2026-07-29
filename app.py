@@ -631,50 +631,48 @@ if not df_hasil.empty:
             # RENDER TAB V7: AI PERSONA BANDAR
             with t_v7:
                 st.subheader("🤖 V7: AI Persona Bandar (Eksklusif)")
-                st.markdown("Pilih saham dan **mesin AI** yang ingin Anda uji coba untuk membedah data bandar hari ini.")
+                st.markdown("Pilih saham dan **mesin AI** yang ingin Anda uji coba untuk membedah manuver bandar hari ini.")
                 
-                # 1. Panggil daftar AI
+                # 1. Panggil daftar AI dari Google
                 daftar_mesin = ambil_daftar_ai()
                 
-                # 2. Buat kolom sejajar agar rapi
+                # 2. Buat dua kolom sejajar untuk Dropdown
                 col_saham, col_ai = st.columns(2)
                 with col_saham:
                     saham_pilihan = st.selectbox("Pilih Kode Saham:", df_hasil['Ticker'].unique(), key='ai_ticker')
                 with col_ai:
                     ai_pilihan = st.selectbox("🧠 Pilih Mesin AI:", daftar_mesin, key='ai_mesin')
                 
-if st.button(f"🔮 Minta Bocoran Bandar untuk {saham_pilihan}"):
+                # 3. Tombol Eksekusi
+                if st.button(f"🔮 Minta Bocoran Bandar untuk {saham_pilihan}"):
                     if saham_pilihan:
                         with st.spinner(f"Mesin {ai_pilihan} sedang menyadap pergerakan bandar {saham_pilihan}..."):
                             
-                            # 1. AMBIL DATA DETIK INI DARI TABEL UTAMA
+                            # AMBIL DATA DETIK INI DARI TABEL UTAMA
                             data_saham = df_hasil[df_hasil['Ticker'] == saham_pilihan].iloc[0]
                             harga_akhir = data_saham['Close']
                             
-                            # Gunakan try-except untuk mencegah error jika nama kolom berbeda
                             status_bandar_akhir = data_saham.get('Fase Siklus Bandar', 'Normal')
                             skor_akhir = data_saham.get('Total Score', 0)
                             
-                            # 2. BACA DATA ARSIP HISTORIS DARI LAPTOP
+                            # BACA DATA ARSIP HISTORIS DARI LAPTOP
                             import glob
                             import os
                             import pandas as pd
                             
-                            # Cari file CSV saham tersebut di dalam folder arsip
                             file_arsip = glob.glob(f"Arsip_Data_Harian/*{saham_pilihan}*.csv")
                             
                             if file_arsip:
-                                # Ambil file paling baru, dan baca 5 baris terakhir (5 hari terakhir)
                                 file_terbaru = max(file_arsip, key=os.path.getctime)
                                 df_hist = pd.read_csv(file_terbaru).tail(5)
                                 teks_ringkasan = df_hist.to_string(index=False)
                             else:
                                 teks_ringkasan = "Data historis tidak ditemukan di arsip."
                             
-                            # 3. KIRIM DATA KE AI PILIHAN ANDA
+                            # KIRIM DATA KE AI PILIHAN ANDA
                             hasil_ai = analisa_bandar_ai(saham_pilihan, teks_ringkasan, harga_akhir, status_bandar_akhir, skor_akhir, ai_pilihan)
                             
-                            # 4. TAMPILKAN HASILNYA DI WEB
+                            # TAMPILKAN HASILNYA DI WEB
                             st.markdown("### 🗣️ Hasil Sadapan Percakapan Bandar:")
                             st.info(hasil_ai)
 else:
