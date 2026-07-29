@@ -233,31 +233,39 @@ def analisa_bandar_ai(ticker, summary_text, harga_sekarang, status_bandar_sekara
     3. Kesimpulan tajam: Untuk trader ritel yang mau "Curi Start" Beli Sore Jual Pagi (BSJP) hari ini, kamu suruh mereka sikat hajar kanan, atau lari menjauh?
     """
     
-    # 💡 SISTEM AUTO-FALLBACK: Daftar model AI yang akan dicoba berurutan
-    daftar_model = [
-        'gemini-1.5-flash', 
-        'gemini-1.5-pro', 
-        'gemini-pro', 
-        'gemini-1.0-pro'
-    ]
-    
-    for nama_model in daftar_model:
-        try:
-            model = genai.GenerativeModel(nama_model)
-            response = model.generate_content(prompt)
+    try:
+        # 1. Skrip bertanya ke Google: "Tolong berikan daftar semua AI yang aktif untuk akun saya"
+        model_tersedia = []
+        for m in genai.list_models():
+            # Filter hanya AI yang bisa membaca dan membalas teks (generateContent)
+            if 'generateContent' in m.supported_generation_methods:
+                model_tersedia.append(m.name)
+        
+        # 2. Jika ternyata kunci API Anda tidak diberi akses AI sama sekali oleh Google
+        if not model_tersedia:
+            return "❌ Gagal: Akun Google API Anda saat ini tidak memiliki akses ke model AI teks apa pun."
             
-            # Jika berhasil mendapat jawaban, tambahkan catatan (notif) di bawah teks
-            hasil_teks = response.text
-            catatan_kaki = f"\n\n---\n🤖 *Catatan: Analisis ini berhasil dijawab menggunakan mesin AI **{nama_model}***"
-            
-            return hasil_teks + catatan_kaki
-            
-        except Exception as e:
-            # Jika model ini gagal/error, abaikan dan putar ulang loop untuk mencoba model berikutnya
-            continue
-            
-    # Jika loop selesai tapi SEMUA model gagal
-    return "❌ Waduh, terjadi kesalahan parah. Semua mesin AI dari Google sedang sibuk, gangguan, atau tidak mengenali kuncinya. Silakan coba beberapa saat lagi."
+        # 3. AUTO-HUNTING: Skrip akan mencoba satu per satu AI yang diberikan oleh server Google
+        for nama_ai in model_tersedia:
+            try:
+                model = genai.GenerativeModel(nama_ai)
+                response = model.generate_content(prompt)
+                
+                # Jika berhasil, berikan notifikasi nama AI yang berjasa di paling bawah
+                nama_bersih = nama_ai.replace("models/", "") # Membersihkan teks "models/" agar rapi
+                catatan = f"\n\n---\n🤖 *Sistem Pencari Otomatis: Analisis ini berhasil dijawab oleh AI **{nama_bersih}***"
+                
+                return response.text + catatan
+                
+            except Exception as e:
+                # Jika AI ini gagal/error, abaikan dan lanjut ke AI berikutnya di daftar Google
+                continue
+                
+        # Jika loop selesai tapi semua AI di daftar Google menolak menjawab
+        return "❌ Waduh, semua AI yang tersedia di server Google sedang menolak memproses data. Mungkin kuota habis atau server sibuk."
+        
+    except Exception as e:
+        return f"❌ Gagal menghubungi server Google untuk meminta daftar AI. Error: {e}"
 
 # ==========================================
 # SECTION 4: HEADER & SIDEBAR
