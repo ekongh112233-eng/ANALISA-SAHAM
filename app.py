@@ -650,7 +650,7 @@ if not df_hasil.empty:
                             
                             # AMBIL DATA DETIK INI DARI TABEL UTAMA
                             data_saham = df_hasil[df_hasil['Ticker'] == saham_pilihan].iloc[0]
-                            harga_akhir = data_saham['Close']
+                            harga_akhir = data_saham.get('Harga', data_saham.get('Close', 0))
                             
                             status_bandar_akhir = data_saham.get('Fase Siklus Bandar', 'Normal')
                             skor_akhir = data_saham.get('Total Score', 0)
