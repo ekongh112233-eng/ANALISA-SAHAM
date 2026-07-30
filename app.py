@@ -46,20 +46,15 @@ if GEMINI_API_KEY:
 # ==========================================
 
 # ==========================================
-# DAFTAR MESIN AI
+# DAFTAR MESIN AI (DIKUNCI MANUAL KARENA API GRATIS)
 # ==========================================
 @st.cache_data
 def ambil_daftar_ai():
     if not GEMINI_API_KEY:
         return ['❌ API Key Belum Terbaca!']
-    try:
-        daftar = []
-        for m in genai.list_models():
-            if 'generateContent' in m.supported_generation_methods:
-                daftar.append(m.name.replace('models/', ''))
-        return daftar
-    except Exception as e:
-        return [f'Error: {e}', 'gemini-pro', 'gemini-1.5-flash']
+    
+    # Langsung kembalikan daftar berisi satu AI andalan Anda
+    return ['gemma-4-26b-a4b-it']
 # ==========================================
 
 st.markdown("""
