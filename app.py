@@ -10,41 +10,56 @@ import plotly.express as px
 
 # IMPORT UNTUK AI GEMINI
 import google.generativeai as genai
+from dotenv import load_dotenv
 
 # ==========================================
 # SECTION 1: PENGATURAN UI/UX & API
 # ==========================================
 st.set_page_config(page_title="Screener Saham IHSG", layout="wide", initial_sidebar_state="expanded")
 
-# KONFIGURASI API KEY GEMINI (SANGAT AMAN)
-try:
-    # 1. Coba ambil dari rahasia server Streamlit Cloud
-    GEMINI_API_KEY = st.secrets["AQ.Ab8RN6_JTtsFBiy08CPY_LfM2APjKMFigea_yJKHH8q6sjusPDg9A"]
-except:
-    # 2. Jika gagal (berarti sedang di laptop lokal), ambil dari file .env
-    try:
-        from dotenv import load_dotenv
-        load_dotenv()
-        GEMINI_API_KEY = os.getenv("AQ.Ab8RN6_JTtsFBiy08CPY_LfM2APjKMFigea_yJKHH8q6sjusPDg9A")
-    except:
-        GEMINI_API_KEY = None
+# ==========================================
+# KONFIGURASI API KEY GEMINI (ANTI-GAGAL)
+# ==========================================
+GEMINI_API_KEY = None
 
+# 1. Coba ambil dari Streamlit Cloud Secrets
+try:
+    GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
+except:
+    pass
+
+# 2. Coba ambil dari file .env (Di laptop lokal)
+if not GEMINI_API_KEY:
+    try:
+        load_dotenv()
+        GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+    except:
+        pass
+
+# 3. JALUR BYPASS / PAKSAAN (KHUSUS CODESPACES):
+if not GEMINI_API_KEY:
+    GEMINI_API_KEY = None  # <-- Kosongkan saja, jangan tempel kunci di sini
+
+# Konfirmasi ke sistem Google
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
+# ==========================================
 
 # ==========================================
-# MASUKKAN LANGKAH 1 TEPAT DI SINI
+# DAFTAR MESIN AI
 # ==========================================
 @st.cache_data
 def ambil_daftar_ai():
+    if not GEMINI_API_KEY:
+        return ['❌ API Key Belum Terbaca!']
     try:
         daftar = []
         for m in genai.list_models():
             if 'generateContent' in m.supported_generation_methods:
                 daftar.append(m.name.replace('models/', ''))
         return daftar
-    except Exception:
-        return ['gemini-pro', 'gemini-1.5-flash'] # Cadangan jika gagal
+    except Exception as e:
+        return [f'Error: {e}', 'gemini-pro', 'gemini-1.5-flash']
 # ==========================================
 
 st.markdown("""
