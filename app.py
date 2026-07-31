@@ -250,6 +250,27 @@ def analisa_bandar_ai_multisaham(data_saham_dict, pilihan_ai):
         # Menyalakan mesin Groq
         client = Groq(api_key=GROQ_API_KEY)
         
+        # ==========================================
+        # FITUR BARU: AUTO-DETECT MODEL GROQ TERBAIK
+        # ==========================================
+        model_andalan = "llama-3.1-70b-versatile" # Cadangan darurat
+        try:
+            daftar_model = client.models.list()
+            semua_model = [m.id for m in daftar_model.data]
+            
+            # 1. Prioritas Pertama: Cari model yang ada kata '70b' (paling pintar)
+            model_70b = [m for m in semua_model if '70b' in m.lower()]
+            if model_70b:
+                model_andalan = model_70b[0] # Ambil 70B yang pertama ketemu
+            else:
+                # 2. Prioritas Kedua: Jika 70b tidak ada, cari model Llama lainnya
+                model_llama = [m for m in semua_model if 'llama' in m.lower()]
+                if model_llama:
+                    model_andalan = model_llama[0]
+        except Exception:
+            pass # Jika radar gagal, tetap pakai cadangan darurat
+        # ==========================================
+
         # 1. Merakit paket data untuk semua saham
         payload_text = ""
         for ticker, data in data_saham_dict.items():
@@ -274,9 +295,9 @@ def analisa_bandar_ai_multisaham(data_saham_dict, pilihan_ai):
         4. Jawab HANYA menggunakan format tabel klasemen dan bullet point eksekusi. Jangan ada basa-basi di awal atau akhir.
         """
         
-        # 3. Menembakkan data ke otak Llama-3 70B yang super cepat
+        # 3. Menembakkan data ke otak Groq yang DIPILIH OTOMATIS
         completion = client.chat.completions.create(
-            model="llama3-70b-8192",
+            model=model_andalan, # <-- Sekarang web Anda mengambil nama dari radar otomatis
             messages=[
                 {"role": "user", "content": prompt}
             ],
@@ -287,7 +308,7 @@ def analisa_bandar_ai_multisaham(data_saham_dict, pilihan_ai):
         )
         
         hasil = completion.choices[0].message.content
-        catatan = f"\n\n---\n⚡ *Dianalisa secepat kilat oleh: **Llama-3 70B (via Groq)***"
+        catatan = f"\n\n---\n⚡ *Dianalisa secepat kilat menggunakan mesin: **{model_andalan} (Auto-Detect)** via Groq*"
         
         return hasil + catatan
         
