@@ -233,53 +233,54 @@ def get_historical_summary(ticker):
         
     return summary_text
 
-def analisa_bandar_ai(ticker, summary_text, harga_sekarang, status_bandar_sekarang, total_score, pilihan_ai):
+def analisa_bandar_ai_multisaham(data_saham_dict, pilihan_ai):
     if not GEMINI_API_KEY:
         return "❌ Kunci API Gemini belum dipasang."
-    
+
+    # 1. Merakit paket data untuk semua saham yang dipilih
+    payload_text = ""
+    for ticker, data in data_saham_dict.items():
+        payload_text += f"\nSAHAM {ticker}:\n"
+        payload_text += f"- Harga Terakhir: Rp {data['harga']}\n"
+        payload_text += f"- Status Bandar: {data['status']}\n"
+        payload_text += f"- Skor Teknikal: {data['skor']}/10\n"
+        payload_text += f"- Histori (3 Hari Terakhir):\n{data['histori']}\n"
+
+    # 2. Instruksi Mega-Screener (Tanpa basa-basi)
     prompt = f"""
-    Bertindaklah sebagai "Bandar Besar Pasar Modal IHSG" yang pragmatis, kejam, dan sangat TO-THE-POINT.
-    Trader ritel ini sedang kehabisan waktu karena market hampir tutup (jam 15:40), berikan analisa KILAT untuk saham {ticker}.
+    Bertindaklah sebagai "Mega Bandar IHSG" yang sangat tajam, analitis, dan blak-blakan.
+    Tugasmu mengurutkan dan menyeleksi {len(data_saham_dict)} saham berikut berdasarkan potensi pom-pom/mark-up tertinggi untuk BSJP (Beli Sore Jual Pagi).
 
-    DATA SAHAM {ticker}:
-    - Harga Terakhir: Rp {harga_sekarang}
-    - Status Bandar: {status_bandar_sekarang}
-    - Skor Teknikal: {total_score}/10
-    
-    JEJAK HISTORIS:
-    {summary_text}
+    DATA SAHAM:
+    {payload_text}
 
-    ATURAN MUTLAK (JIKA DILANGGAR, KAMU GAGAL):
-    1. DILARANG KERAS memunculkan proses berpikir (thinking process), draf, atau basa-basi. 
-    2. JANGAN mengulang instruksi prompt. LANGSUNG cetak hasilnya menggunakan template di bawah sejak karakter pertama.
-    3. Wajib berikan estimasi ANGKA HARGA masuk, target jual (TP), dan batas kabur (SL).
+    ATURAN MUTLAK (JIKA DILANGGAR KAMU GAGAL):
+    1. DILARANG KERAS menampilkan proses berpikir, draf, atau basa-basi.
+    2. Urutkan dari Peringkat 1 (Paling siap terbang) sampai terakhir.
+    3. Berikan "Skor Pom-Pom" (0-100%) untuk masing-masing saham.
+    4. Gunakan bahasa gaul pasar saham (bandar, ritel, HAKA, guyur, cuci piring, bagger).
+    5. LANGSUNG cetak hasil dengan format Markdown persis seperti template di bawah ini sejak karakter pertama.
 
-    TEMPLATE JAWABAN WAJIB:
-    
-    **🕵️ Niat Asli Bandar:**
-    [Manuver rahasiamu hari ini]
+    TEMPLATE JAWABAN:
+    **🏆 KLASEMEN SAHAM POM-POM (BSJP)**
+    [Buat tabel rapi berisi: Peringkat, Ticker, Skor Pom-Pom, Status Bandar]
 
-    **⚔️ Peta Mekanik:**
-    [Siapa pemenang hari ini antara Smart Money vs Ritel?]
+    **🔥 Analisa & Eksekusi Tercepat:**
+    *   **#1 [TICKER 1] (Skor: X%)**: [Analisa 1 kalimat. Taktik Beli di harga brp, Target Jual brp, Cut Loss brp]
+    *   **#2 [TICKER 2] (Skor: X%)**: [Analisa 1 kalimat. Taktik Beli di harga brp, Target Jual brp, Cut Loss brp]
+    (Lanjutkan untuk semua saham...)
 
-    **🎯 EKSEKUSI BSJP:**
-    * **Keputusan:** [Beli / Wait & See / Skip]
-    * **Taktik Beli:** [Cara belinya dan estimasi harganya]
-    * **Target Guyur (Jual):** [Estimasi harga TP]
-    * **Batas Kabur (Cut Loss):** [Estimasi harga SL]
-    * **Pesan Bandar:** [Peringatan psikologi]
+    **⚠️ Kesimpulan Mega Bandar:**
+    [1 kalimat tajam: Saham mana SATU-SATUNYA yang paling wajib di-HAKA sore ini, dan mana yang murni jebakan cuci piring]
     """
     
     try:
-        # Menggunakan AI sesuai yang Anda pilih di Dropdown
         model = genai.GenerativeModel(pilihan_ai)
         response = model.generate_content(prompt)
-        
-        catatan = f"\n\n---\n🎯 *Dianalisa khusus menggunakan mesin: **{pilihan_ai}***"
+        catatan = f"\n\n---\n🎯 *Dianalisa oleh mesin: **{pilihan_ai}***"
         return response.text + catatan
-        
     except Exception as e:
-        return f"❌ Gagal memproses dengan {pilihan_ai}. AI ini mungkin sedang sibuk atau tidak mendukung instruksi. Error: {e}"
+        return f"❌ Gagal memproses data. AI mungkin kelebihan beban. Error: {e}"
 
 # ==========================================
 # SECTION 4: HEADER & SIDEBAR
@@ -640,50 +641,62 @@ if not df_hasil.empty:
             
             # RENDER TAB V7: AI PERSONA BANDAR
             with t_v7:
-                st.subheader("🤖 V7: AI Persona Bandar (Eksklusif)")
-                st.markdown("Pilih saham dan **mesin AI** yang ingin Anda uji coba untuk membedah manuver bandar hari ini.")
+                st.subheader("🤖 V7: Mega-Screener AI (Asisten Manajer Investasi)")
+                st.markdown("Pilih **Maksimal 7 Saham** untuk diadu dan diurutkan potensinya. AI akan mencari saham mana yang paling siap dipompa oleh bandar.")
                 
-                # 1. Panggil daftar AI dari Google
+                # Mengambil AI andalan yang sudah dikunci
                 daftar_mesin = ambil_daftar_ai()
+                ai_pilihan = daftar_mesin[0] if daftar_mesin else 'gemma-4-26b-a4b-it'
                 
-                # 2. Buat dua kolom sejajar untuk Dropdown
-                col_saham, col_ai = st.columns(2)
-                with col_saham:
-                    saham_pilihan = st.selectbox("Pilih Kode Saham:", df_hasil['Ticker'].unique(), key='ai_ticker')
-                with col_ai:
-                    ai_pilihan = st.selectbox("🧠 Pilih Mesin AI:", daftar_mesin, key='ai_mesin')
+                # Fitur Baru: Multiselect (Bisa pilih banyak saham)
+                saham_pilihan_multi = st.multiselect(
+                    "📊 Masukkan Daftar Saham (Maksimal 7):", 
+                    options=df_hasil['Ticker'].unique(), 
+                    default=[], 
+                    key='ai_ticker_multi',
+                    max_selections=7
+                )
                 
-                # 3. Tombol Eksekusi
-                if st.button(f"🔮 Minta Bocoran Bandar untuk {saham_pilihan}"):
-                    if saham_pilihan:
-                        with st.spinner(f"Mesin {ai_pilihan} sedang menyadap pergerakan bandar {saham_pilihan}..."):
-                            
-                            # AMBIL DATA DETIK INI DARI TABEL UTAMA
-                            data_saham = df_hasil[df_hasil['Ticker'] == saham_pilihan].iloc[0]
-                            harga_akhir = data_saham.get('Harga', data_saham.get('Close', 0))
-                            
-                            status_bandar_akhir = data_saham.get('Fase Siklus Bandar', 'Normal')
-                            skor_akhir = data_saham.get('Total Score', 0)
-                            
-                            # BACA DATA ARSIP HISTORIS DARI LAPTOP
+                if st.button(f"🔮 Mulai Mega-Screener"):
+                    if not saham_pilihan_multi:
+                        st.warning("⚠️ Masukkan minimal 1 saham terlebih dahulu di kolom atas!")
+                    else:
+                        with st.spinner(f"Menyatukan data {len(saham_pilihan_multi)} saham. Mesin {ai_pilihan} sedang menganalisa..."):
                             import glob
                             import os
                             import pandas as pd
                             
-                            file_arsip = glob.glob(f"Arsip_Data_Harian/*{saham_pilihan}*.csv")
+                            data_kompilasi = {}
                             
-                            if file_arsip:
-                                file_terbaru = max(file_arsip, key=os.path.getctime)
-                                df_hist = pd.read_csv(file_terbaru).tail(5)
-                                teks_ringkasan = df_hist.to_string(index=False)
-                            else:
-                                teks_ringkasan = "Data historis tidak ditemukan di arsip."
+                            # Melakukan looping untuk setiap saham yang Anda pilih
+                            for ticker in saham_pilihan_multi:
+                                data_saham = df_hasil[df_hasil['Ticker'] == ticker].iloc[0]
+                                harga_akhir = data_saham.get('Harga', data_saham.get('Close', 0))
+                                status_bandar_akhir = data_saham.get('Fase Siklus Bandar', 'Normal')
+                                skor_akhir = data_saham.get('Total Score', 0)
+                                
+                                file_arsip = glob.glob(f"Arsip_Data_Harian/*{ticker}*.csv")
+                                
+                                if file_arsip:
+                                    file_terbaru = max(file_arsip, key=os.path.getctime)
+                                    # KUNCI KECEPATAN: Hanya ambil 3 hari terakhir agar AI tidak lemot
+                                    df_hist = pd.read_csv(file_terbaru).tail(3)
+                                    teks_ringkasan = df_hist.to_string(index=False)
+                                else:
+                                    teks_ringkasan = "Data historis tidak tersedia."
+                                
+                                # Simpan ke kamus data
+                                data_kompilasi[ticker] = {
+                                    'harga': harga_akhir,
+                                    'status': status_bandar_akhir,
+                                    'skor': skor_akhir,
+                                    'histori': teks_ringkasan
+                                }
                             
-                            # KIRIM DATA KE AI PILIHAN ANDA
-                            hasil_ai = analisa_bandar_ai(saham_pilihan, teks_ringkasan, harga_akhir, status_bandar_akhir, skor_akhir, ai_pilihan)
+                            # Lempar semua data ke AI
+                            hasil_ai = analisa_bandar_ai_multisaham(data_kompilasi, ai_pilihan)
                             
-                            # TAMPILKAN HASILNYA DI WEB
-                            st.markdown("### 🗣️ Hasil Sadapan Percakapan Bandar:")
+                            st.markdown("### 🗣️ Klasemen Eksekusi Bandar:")
                             st.info(hasil_ai)
 else:
     st.error("Silakan jalankan `update_data.py` terlebih dahulu di terminal untuk memuat data!")
