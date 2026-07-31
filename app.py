@@ -642,34 +642,53 @@ if not df_hasil.empty:
             # RENDER TAB V7: AI PERSONA BANDAR
             with t_v7:
                 st.subheader("🤖 V7: Mega-Screener AI (Asisten Manajer Investasi)")
-                st.markdown("Pilih **Maksimal 7 Saham** untuk diadu dan diurutkan potensinya. AI akan mencari saham mana yang paling siap dipompa oleh bandar.")
+                st.markdown("Cukup **Copy-Paste** daftar saham dari grup Telegram atau catatan Anda ke kotak di bawah ini.")
                 
                 # Mengambil AI andalan yang sudah dikunci
                 daftar_mesin = ambil_daftar_ai()
                 ai_pilihan = daftar_mesin[0] if daftar_mesin else 'gemma-4-26b-a4b-it'
                 
-                # Fitur Baru: Multiselect (Bisa pilih banyak saham)
-                saham_pilihan_multi = st.multiselect(
-                    "📊 Masukkan Daftar Saham (Maksimal 7):", 
-                    options=df_hasil['Ticker'].unique(), 
-                    default=[], 
-                    key='ai_ticker_multi',
-                    max_selections=7
+                # Fitur Baru: Kolom Copy-Paste Massal
+                input_saham_massal = st.text_area(
+                    "📋 Paste Daftar Saham (Pisahkan dengan Enter, Koma, atau Spasi):", 
+                    placeholder="Contoh:\nDMAS\nINDF\nAMAR\n...",
+                    height=200
                 )
                 
                 if st.button(f"🔮 Mulai Mega-Screener"):
-                    if not saham_pilihan_multi:
-                        st.warning("⚠️ Masukkan minimal 1 saham terlebih dahulu di kolom atas!")
+                    import re
+                    
+                    # 1. Membaca input: Memisahkan teks berdasarkan Enter, Koma, atau Spasi
+                    saham_mentah = re.split(r'[,\s\n]+', input_saham_massal)
+                    
+                    # 2. Merapikan data: Huruf BESAR semua dan hapus spasi kosong
+                    saham_bersih = [s.strip().upper() for s in saham_mentah if s.strip()]
+                    
+                    # 3. Menghapus duplikat (jaga-jaga jika Anda mengetik saham yang sama 2x)
+                    saham_unik = list(dict.fromkeys(saham_bersih))
+                    
+                    # 4. Validasi Keamanan: Pastikan saham tersebut ada di database IHSG hari ini
+                    saham_valid = [s for s in saham_unik if s in df_hasil['Ticker'].values]
+                    saham_ditolak = [s for s in saham_unik if s not in df_hasil['Ticker'].values]
+                    
+                    if not saham_valid:
+                        st.warning("⚠️ Tidak ada saham valid yang ditemukan. Pastikan format penulisan benar.")
                     else:
-                        with st.spinner(f"Menyatukan data {len(saham_pilihan_multi)} saham. Mesin {ai_pilihan} sedang menganalisa..."):
+                        if saham_ditolak:
+                            st.warning(f"⚠️ Beberapa teks diabaikan karena bukan saham valid/tidak ada di tabel: {', '.join(saham_ditolak)}")
+                            
+                        # Peringatan limitasi
+                        if len(saham_valid) > 20:
+                            st.info("ℹ️ Anda memasukkan lebih dari 20 saham. Proses AI mungkin butuh waktu lebih lama (30-60 detik).")
+                            
+                        with st.spinner(f"Menyatukan data {len(saham_valid)} saham. Mesin {ai_pilihan} sedang menganalisa..."):
                             import glob
                             import os
                             import pandas as pd
                             
                             data_kompilasi = {}
                             
-                            # Melakukan looping untuk setiap saham yang Anda pilih
-                            for ticker in saham_pilihan_multi:
+                            for ticker in saham_valid:
                                 data_saham = df_hasil[df_hasil['Ticker'] == ticker].iloc[0]
                                 harga_akhir = data_saham.get('Harga', data_saham.get('Close', 0))
                                 status_bandar_akhir = data_saham.get('Fase Siklus Bandar', 'Normal')
@@ -679,13 +698,12 @@ if not df_hasil.empty:
                                 
                                 if file_arsip:
                                     file_terbaru = max(file_arsip, key=os.path.getctime)
-                                    # KUNCI KECEPATAN: Hanya ambil 3 hari terakhir agar AI tidak lemot
+                                    # Ambil 3 hari terakhir agar AI tidak amnesia baca terlalu banyak teks
                                     df_hist = pd.read_csv(file_terbaru).tail(3)
                                     teks_ringkasan = df_hist.to_string(index=False)
                                 else:
                                     teks_ringkasan = "Data historis tidak tersedia."
                                 
-                                # Simpan ke kamus data
                                 data_kompilasi[ticker] = {
                                     'harga': harga_akhir,
                                     'status': status_bandar_akhir,
@@ -693,7 +711,7 @@ if not df_hasil.empty:
                                     'histori': teks_ringkasan
                                 }
                             
-                            # Lempar semua data ke AI
+                            # Tembakkan ke Mega Prompt AI
                             hasil_ai = analisa_bandar_ai_multisaham(data_kompilasi, ai_pilihan)
                             
                             st.markdown("### 🗣️ Klasemen Eksekusi Bandar:")
