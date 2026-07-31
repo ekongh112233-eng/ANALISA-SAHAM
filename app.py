@@ -10,6 +10,7 @@ import plotly.express as px
 
 # IMPORT UNTUK AI GEMINI
 import google.generativeai as genai
+from groq import Groq
 from dotenv import load_dotenv
 
 # ==========================================
@@ -234,53 +235,64 @@ def get_historical_summary(ticker):
     return summary_text
 
 def analisa_bandar_ai_multisaham(data_saham_dict, pilihan_ai):
-    if not GEMINI_API_KEY:
-        return "❌ Kunci API Gemini belum dipasang."
-
-    # 1. Merakit paket data untuk semua saham yang dipilih
-    payload_text = ""
-    for ticker, data in data_saham_dict.items():
-        payload_text += f"\nSAHAM {ticker}:\n"
-        payload_text += f"- Harga Terakhir: Rp {data['harga']}\n"
-        payload_text += f"- Status Bandar: {data['status']}\n"
-        payload_text += f"- Skor Teknikal: {data['skor']}/10\n"
-        payload_text += f"- Histori (3 Hari Terakhir):\n{data['histori']}\n"
-
-    # 2. Instruksi Mega-Screener (Tanpa basa-basi)
-    prompt = f"""
-    Bertindaklah sebagai "Mega Bandar IHSG" yang sangat tajam, analitis, dan blak-blakan.
-    Tugasmu mengurutkan dan menyeleksi {len(data_saham_dict)} saham berikut berdasarkan potensi pom-pom/mark-up tertinggi untuk BSJP (Beli Sore Jual Pagi).
-
-    DATA SAHAM:
-    {payload_text}
-
-    ATURAN MUTLAK (JIKA DILANGGAR KAMU GAGAL):
-    1. DILARANG KERAS menampilkan proses berpikir, draf, atau basa-basi.
-    2. Urutkan dari Peringkat 1 (Paling siap terbang) sampai terakhir.
-    3. Berikan "Skor Pom-Pom" (0-100%) untuk masing-masing saham.
-    4. Gunakan bahasa gaul pasar saham (bandar, ritel, HAKA, guyur, cuci piring, bagger).
-    5. LANGSUNG cetak hasil dengan format Markdown persis seperti template di bawah ini sejak karakter pertama.
-
-    TEMPLATE JAWABAN:
-    **🏆 KLASEMEN SAHAM POM-POM (BSJP)**
-    [Buat tabel rapi berisi: Peringkat, Ticker, Skor Pom-Pom, Status Bandar]
-
-    **🔥 Analisa & Eksekusi Tercepat:**
-    *   **#1 [TICKER 1] (Skor: X%)**: [Analisa 1 kalimat. Taktik Beli di harga brp, Target Jual brp, Cut Loss brp]
-    *   **#2 [TICKER 2] (Skor: X%)**: [Analisa 1 kalimat. Taktik Beli di harga brp, Target Jual brp, Cut Loss brp]
-    (Lanjutkan untuk semua saham...)
-
-    **⚠️ Kesimpulan Mega Bandar:**
-    [1 kalimat tajam: Saham mana SATU-SATUNYA yang paling wajib di-HAKA sore ini, dan mana yang murni jebakan cuci piring]
-    """
-    
+    # ==========================================
+    # TARIK KUNCI API GROQ DARI STREAMLIT SECRETS
+    # ==========================================
     try:
-        model = genai.GenerativeModel(pilihan_ai)
-        response = model.generate_content(prompt)
-        catatan = f"\n\n---\n🎯 *Dianalisa oleh mesin: **{pilihan_ai}***"
-        return response.text + catatan
+        GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
+    except:
+        GROQ_API_KEY = None
+        
+    if not GROQ_API_KEY:
+        return "❌ Kunci API Groq belum dipasang di pengaturan Streamlit Secrets!"
+
+    try:
+        # Menyalakan mesin Groq
+        client = Groq(api_key=GROQ_API_KEY)
+        
+        # 1. Merakit paket data untuk semua saham
+        payload_text = ""
+        for ticker, data in data_saham_dict.items():
+            payload_text += f"\nSAHAM {ticker}:\n"
+            payload_text += f"- Harga Terakhir: Rp {data['harga']}\n"
+            payload_text += f"- Status Bandar: {data['status']}\n"
+            payload_text += f"- Skor Teknikal: {data['skor']}/10\n"
+            payload_text += f"- Histori (3 Hari Terakhir):\n{data['histori']}\n"
+
+        # 2. Mega-Prompt
+        prompt = f"""
+        Bertindaklah sebagai "Mega Bandar IHSG" yang sangat tajam, analitis, dan blak-blakan.
+        Tugasmu mengurutkan dan menyeleksi saham berikut berdasarkan potensi pom-pom/mark-up tertinggi untuk BSJP (Beli Sore Jual Pagi).
+
+        DATA SAHAM:
+        {payload_text}
+
+        ATURAN MUTLAK:
+        1. Urutkan dari Peringkat 1 (Paling siap terbang) sampai terakhir.
+        2. Berikan "Skor Pom-Pom" (0-100%) untuk masing-masing saham.
+        3. Gunakan bahasa gaul saham (bandar, ritel, HAKA, guyur, cuci piring, bagger).
+        4. Jawab HANYA menggunakan format tabel klasemen dan bullet point eksekusi. Jangan ada basa-basi di awal atau akhir.
+        """
+        
+        # 3. Menembakkan data ke otak Llama-3 70B yang super cepat
+        completion = client.chat.completions.create(
+            model="llama3-70b-8192",
+            messages=[
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=2500,
+            top_p=1,
+            stream=False,
+        )
+        
+        hasil = completion.choices[0].message.content
+        catatan = f"\n\n---\n⚡ *Dianalisa secepat kilat oleh: **Llama-3 70B (via Groq)***"
+        
+        return hasil + catatan
+        
     except Exception as e:
-        return f"❌ Gagal memproses data. AI mungkin kelebihan beban. Error: {e}"
+        return f"❌ Gagal memproses data dengan Groq. Error: {e}"
 
 # ==========================================
 # SECTION 4: HEADER & SIDEBAR
