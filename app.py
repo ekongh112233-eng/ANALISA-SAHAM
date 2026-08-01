@@ -692,10 +692,24 @@ if not df_hasil.empty:
                         if saham_ditolak:
                             st.warning(f"⚠️ Beberapa teks diabaikan karena bukan saham valid/tidak ada di tabel: {', '.join(saham_ditolak)}")
                             
-                        if len(saham_valid) > 20:
-                            st.info("ℹ️ Anda memasukkan lebih dari 20 saham. Proses AI mungkin butuh waktu lebih lama (30-60 detik).")
+                        # ==========================================
+                        # FITUR BARU: SMART PRE-FILTER ANTI-LIMIT
+                        # ==========================================
+                        if len(saham_valid) > 30:
+                            st.error(f"🚨 Anda memasukkan {len(saham_valid)} saham! Ini akan membuat AI kelebihan beban (Limit Groq Maks 12.000 Token).")
+                            st.info("🤖 **Sistem Otomatis Aktif:** Python sedang menyaring 30 saham terbaik dari daftar Anda (berdasarkan Skor & Volume tertinggi) sebelum dikirim ke AI...")
                             
-                        with st.spinner(f"Menyatukan data {len(saham_valid)} saham. AI Sedang mendeteksi bandar..."):
+                            # Mengambil data saham yang valid, lalu di-ranking
+                            df_valid = df_hasil[df_hasil['Ticker'].isin(saham_valid)].copy()
+                            # Sortir dari skor tertinggi dan volume terbesar
+                            df_valid = df_valid.sort_values(by=['Total Score', 'Volume'], ascending=[False, False])
+                            # Ambil top 30 saja
+                            saham_valid = df_valid['Ticker'].head(30).tolist()
+                            
+                            st.success(f"✅ Selesai disaring! 30 saham elit yang lolos dan dikirim ke AI adalah: {', '.join(saham_valid)}")
+                        # ==========================================
+                            
+                        with st.spinner(f"Menyatukan data {len(saham_valid)} saham terpilih. AI Llama-3 Sedang mendeteksi bandar..."):
                             import glob
                             import os
                             import pandas as pd
