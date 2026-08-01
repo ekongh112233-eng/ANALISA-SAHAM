@@ -266,18 +266,23 @@ def analisa_bandar_ai_multisaham(data_saham_dict, pilihan_ai):
             payload_text += f"- Skor Teknikal: {data['skor']}/10\n"
             payload_text += f"- Histori (5 Hari Terakhir):\n{data['histori']}\n"
 
+        # 2. Mega-Prompt yang Disempurnakan
         prompt = f"""
-        Bertindaklah sebagai "Mega Bandar IHSG" yang sangat tajam, analitis, dan blak-blakan.
-        Tugasmu mengurutkan dan menyeleksi saham berikut berdasarkan potensi pom-pom/mark-up tertinggi untuk BSJP (Beli Sore Jual Pagi).
+        Bertindaklah sebagai "Mega Bandar IHSG" yang sangat tajam dan analitis.
+        Saya memberikan data {len(data_saham_dict)} saham beserta jejak historisnya. 
+        
+        TUGAS UTAMA:
+        Baca semua data tersebut secara komprehensif, namun KAMU HANYA BOLEH MENAMPILKAN 5 SAHAM TERBAIK yang paling siap pom-pom untuk BSJP. Abaikan sisa saham lainnya!
 
         DATA SAHAM:
         {payload_text}
 
         ATURAN MUTLAK:
-        1. Urutkan dari Peringkat 1 (Paling siap terbang) sampai terakhir.
-        2. Berikan "Skor Pom-Pom" (0-100%) untuk masing-masing saham.
-        3. Gunakan bahasa gaul saham (bandar, ritel, HAKA, guyur, cuci piring, bagger).
-        4. Jawab HANYA menggunakan format tabel klasemen dan bullet point eksekusi. Jangan ada basa-basi di awal atau akhir.
+        1. JANGAN mencetak daftar semua saham. Hanya tampilkan Top 5 Elite.
+        2. Berikan "Skor Pom-Pom" (0-100%) yang realistis berdasarkan data (jangan membuat skor berurutan rapi seperti 95, 94, 93).
+        3. Berikan penjelasan analitis yang tajam (2-3 kalimat) MENGAPA saham ini masuk Top 5 (sebutkan anomali volume, tren MA, atau akumulasi bandarnya dari data historis yang diberikan).
+        4. Tuliskan Trading Plan singkat (Area Beli, Target Jual, Cut Loss).
+        5. Gunakan format Markdown yang rapi.
         """
         
         completion = client.chat.completions.create(
