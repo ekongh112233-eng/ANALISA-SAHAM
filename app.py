@@ -732,7 +732,7 @@ if not df_hasil.empty:
                                 if file_arsip:
                                     file_terbaru = max(file_arsip, key=os.path.getctime)
                                     # Ambil 3 hari terakhir agar AI tidak amnesia baca terlalu banyak teks
-                                    df_hist = pd.read_csv(file_terbaru).tail(3)
+                                    df_hist = pd.read_csv(file_terbaru).tail(5)
                                     teks_ringkasan = df_hist.to_string(index=False)
                                 else:
                                     teks_ringkasan = "Data historis tidak tersedia."
