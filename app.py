@@ -8,7 +8,7 @@ import glob
 from datetime import datetime
 import plotly.express as px
 
-# IMPORT UNTUK AI GEMINI
+# IMPORT UNTUK AI GEMINI & GROQ
 import google.generativeai as genai
 from groq import Groq
 from dotenv import load_dotenv
@@ -191,19 +191,16 @@ def load_data_saham():
 # SECTION 3.5: LOGIKA AI & COMPRESSOR ARSIP
 # ==========================================
 def get_historical_summary(ticker):
-    # Cari semua file CSV arsip harian
     arsip_files = glob.glob("Arsip_Data_Harian/screener_*.csv")
     if not arsip_files:
         return None
     
-    # Ambil maksimal 60 hari terakhir agar memori tetap ringan
     arsip_files.sort(reverse=True)
     arsip_files = arsip_files[:60]
     
     df_list = []
     for file in arsip_files:
         try:
-            # Hanya baca kolom esensial
             cols = ["Waktu Update", "Ticker", "Harga (Rp)", "Volume", "Posisi VWAP", "OBV Trend", "Tekanan Bandar", "Fase Siklus Bandar", "Trend MA (5,20,50)"]
             temp_df = pd.read_csv(file, usecols=lambda c: c in cols)
             temp_df = temp_df[temp_df["Ticker"] == ticker]
@@ -220,7 +217,6 @@ def get_historical_summary(ticker):
     df_history = pd.concat(df_list, ignore_index=True)
     df_history = df_history.sort_values(by=["Tanggal", "Waktu Update"])
     
-    # Rangkum data intraday menjadi 1 baris per hari untuk AI
     summary_text = f"REKAM JEJAK ARSIP INTRADAY SAHAM {ticker}:\n\n"
     
     for date, group in df_history.groupby("Tanggal"):
@@ -235,9 +231,6 @@ def get_historical_summary(ticker):
     return summary_text
 
 def analisa_bandar_ai_multisaham(data_saham_dict, pilihan_ai):
-    # ==========================================
-    # TARIK KUNCI API GROQ DARI STREAMLIT SECRETS
-    # ==========================================
     try:
         GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
     except:
@@ -247,40 +240,32 @@ def analisa_bandar_ai_multisaham(data_saham_dict, pilihan_ai):
         return "❌ Kunci API Groq belum dipasang di pengaturan Streamlit Secrets!"
 
     try:
-        # Menyalakan mesin Groq
         client = Groq(api_key=GROQ_API_KEY)
         
-        # ==========================================
-        # FITUR BARU: AUTO-DETECT MODEL GROQ TERBAIK
-        # ==========================================
-        model_andalan = "llama-3.1-70b-versatile" # Cadangan darurat
+        # AUTO-DETECT MODEL GROQ TERBAIK
+        model_andalan = "llama-3.1-70b-versatile" 
         try:
             daftar_model = client.models.list()
             semua_model = [m.id for m in daftar_model.data]
             
-            # 1. Prioritas Pertama: Cari model yang ada kata '70b' (paling pintar)
             model_70b = [m for m in semua_model if '70b' in m.lower()]
             if model_70b:
-                model_andalan = model_70b[0] # Ambil 70B yang pertama ketemu
+                model_andalan = model_70b[0] 
             else:
-                # 2. Prioritas Kedua: Jika 70b tidak ada, cari model Llama lainnya
                 model_llama = [m for m in semua_model if 'llama' in m.lower()]
                 if model_llama:
                     model_andalan = model_llama[0]
         except Exception:
-            pass # Jika radar gagal, tetap pakai cadangan darurat
-        # ==========================================
+            pass 
 
-        # 1. Merakit paket data untuk semua saham
         payload_text = ""
         for ticker, data in data_saham_dict.items():
             payload_text += f"\nSAHAM {ticker}:\n"
             payload_text += f"- Harga Terakhir: Rp {data['harga']}\n"
             payload_text += f"- Status Bandar: {data['status']}\n"
             payload_text += f"- Skor Teknikal: {data['skor']}/10\n"
-            payload_text += f"- Histori (3 Hari Terakhir):\n{data['histori']}\n"
+            payload_text += f"- Histori (5 Hari Terakhir):\n{data['histori']}\n"
 
-        # 2. Mega-Prompt
         prompt = f"""
         Bertindaklah sebagai "Mega Bandar IHSG" yang sangat tajam, analitis, dan blak-blakan.
         Tugasmu mengurutkan dan menyeleksi saham berikut berdasarkan potensi pom-pom/mark-up tertinggi untuk BSJP (Beli Sore Jual Pagi).
@@ -295,9 +280,8 @@ def analisa_bandar_ai_multisaham(data_saham_dict, pilihan_ai):
         4. Jawab HANYA menggunakan format tabel klasemen dan bullet point eksekusi. Jangan ada basa-basi di awal atau akhir.
         """
         
-        # 3. Menembakkan data ke otak Groq yang DIPILIH OTOMATIS
         completion = client.chat.completions.create(
-            model=model_andalan, # <-- Sekarang web Anda mengambil nama dari radar otomatis
+            model=model_andalan, 
             messages=[
                 {"role": "user", "content": prompt}
             ],
@@ -417,7 +401,6 @@ def warna_tabel(val):
             return 'color: #22c55e;' if len(val) >= 6 else 'color: #ef4444;'
     return ''
 
-# Fungsi Helper Rendering Tabel di Tab 5
 def render_strategy_table(df_subset, file_name):
     if not df_subset.empty:
         sort_cols = [c for c in ['Total Score', 'Volume'] if c in df_subset.columns]
@@ -437,12 +420,10 @@ def render_strategy_table(df_subset, file_name):
         st.dataframe(tabel_jadi, use_container_width=True, hide_index=True)
 
         c1, c2 = st.columns([1, 1])
-        # Membuat file Excel lengkap dengan warnanya ke dalam memori
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
             tabel_jadi.to_excel(writer, index=False, sheet_name='Screener')
         
-        # Membuat tombol download Excel
         c1.download_button(
             label=f"📥 Download {file_name} (Excel)",
             data=buffer.getvalue(),
@@ -450,7 +431,11 @@ def render_strategy_table(df_subset, file_name):
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             key=f"dl_{file_name}"
         )
-        c2.code(", ".join(df_subset["Ticker"].tolist()), language="text")
+        
+        with c2:
+            st.markdown("**📋 Salin Daftar Saham:**")
+            st.code("\n".join(df_subset["Ticker"].tolist()), language="text")
+            st.caption("Klik icon 'Copy' (pojok kanan atas) untuk paste ke Tab V7.")
     else:
         st.info("🔍 Belum ada pergerakan saham yang memenuhi kriteria strategi ini pada sesi saat ini.")
 
@@ -582,9 +567,10 @@ if not df_hasil.empty:
                     key="dl_tab2"
                 )
             with col_wl:
-                daftar_ticker = ", ".join(df_filtered["Ticker"].tolist())
-                st.code(daftar_ticker, language="text")
-                st.caption("📋 Klik icon 'Copy' untuk paste massal ke TradingView/Broker.")
+                st.markdown("**📋 Salin Daftar Saham:**")
+                daftar_ticker = df_filtered["Ticker"].tolist()
+                st.code("\n".join(daftar_ticker), language="text")
+                st.caption("Klik icon 'Copy' di pojok kanan atas kotak untuk paste massal ke Tab V7 atau TradingView.")
         else: 
             st.warning("Tidak ada data sesuai filter.")
 
@@ -627,7 +613,6 @@ if not df_hasil.empty:
                 "🤖 V7: AI Bandar (NEW)"
             ])
 
-            # --- KONDISI V1 SD V6 (TIDAK DIRUBAH) ---
             cond_v1 = ((df_hasil['Posisi VWAP'] == 'Di Atas VWAP (Kuat)') & (df_hasil['OBV Trend'] == 'Akumulasi (Naik)') & (df_hasil['Momentum'] == 'Positif') & (df_hasil['Karakter Gorengan'].isin(['Solid (Jarang Dibanting)', 'Normal'])) & (df_hasil['Kelas Transaksi'] != 'Gorengan Sepi (< 5M)') & (df_hasil['Total Score'] >= 4))
             df_v1 = df_hasil[cond_v1].copy()
 
@@ -644,7 +629,7 @@ if not df_hasil.empty:
                 (df_hasil['OBV Trend'] == 'Akumulasi (Naik)') & 
                 (df_hasil['Total Score'] >= 6)
             )
-            df_v4 = df_hasil[cond_v4].copy()  # <--- PASTIKAN BARIS INI ADA
+            df_v4 = df_hasil[cond_v4].copy() 
 
             cond_v5 = ((df_hasil['Kategori'] == 'Small Cap (Lapis 3)') & (df_hasil['Tekanan Bandar'] == 'Dominan Beli (Hajar Kanan)') & (df_hasil['Vol Breakout'] == 'Tembus MA20') & (df_hasil['Kelas Transaksi'].isin(['Sultan (> 50M/hari)', 'Ritel Aktif (5M - 50M)'])) & ((df_hasil['Status Bandar'] == 'Akumulasi Kuat') | (df_hasil['OBV Trend'] == 'Akumulasi (Naik)')))
             df_v5 = df_hasil[cond_v5].copy()
@@ -652,7 +637,6 @@ if not df_hasil.empty:
             cond_v6 = (((df_hasil['Status BB'] == 'Squeeze') | (df_hasil['Fase Siklus Bandar'] == 'Sideways')) & (df_hasil['Trend MA (5,20,50)'].isin(['Perfect Uptrend (5>20>50)', 'Awal Reversal (5>20)'])) & (df_hasil['Kelas Transaksi'] != 'Gorengan Sepi (< 5M)'))
             df_v6 = df_hasil[cond_v6].copy() if 'Trend MA (5,20,50)' in df_hasil.columns else pd.DataFrame()
 
-            # RENDER TAB V1 SD V6
             with t_v1:
                 st.subheader("⚡ V1: Momentum Breakout")
                 render_strategy_table(df_v1, "BSJP_V1_Momentum")
@@ -672,16 +656,13 @@ if not df_hasil.empty:
                 st.subheader("🎯 V6: Squeeze & Konsolidasi")
                 render_strategy_table(df_v6, "BSJP_V6_SqueezeMA")
             
-            # RENDER TAB V7: AI PERSONA BANDAR
             with t_v7:
                 st.subheader("🤖 V7: Mega-Screener AI (Asisten Manajer Investasi)")
                 st.markdown("Cukup **Copy-Paste** daftar saham dari grup Telegram atau catatan Anda ke kotak di bawah ini.")
                 
-                # Mengambil AI andalan yang sudah dikunci
                 daftar_mesin = ambil_daftar_ai()
                 ai_pilihan = daftar_mesin[0] if daftar_mesin else 'gemma-4-26b-a4b-it'
                 
-                # Fitur Baru: Kolom Copy-Paste Massal
                 input_saham_massal = st.text_area(
                     "📋 Paste Daftar Saham (Pisahkan dengan Enter, Koma, atau Spasi):", 
                     placeholder="Contoh:\nDMAS\nINDF\nAMAR\n...",
@@ -691,16 +672,10 @@ if not df_hasil.empty:
                 if st.button(f"🔮 Mulai Mega-Screener"):
                     import re
                     
-                    # 1. Membaca input: Memisahkan teks berdasarkan Enter, Koma, atau Spasi
                     saham_mentah = re.split(r'[,\s\n]+', input_saham_massal)
-                    
-                    # 2. Merapikan data: Huruf BESAR semua dan hapus spasi kosong
                     saham_bersih = [s.strip().upper() for s in saham_mentah if s.strip()]
-                    
-                    # 3. Menghapus duplikat (jaga-jaga jika Anda mengetik saham yang sama 2x)
                     saham_unik = list(dict.fromkeys(saham_bersih))
                     
-                    # 4. Validasi Keamanan: Pastikan saham tersebut ada di database IHSG hari ini
                     saham_valid = [s for s in saham_unik if s in df_hasil['Ticker'].values]
                     saham_ditolak = [s for s in saham_unik if s not in df_hasil['Ticker'].values]
                     
@@ -710,11 +685,10 @@ if not df_hasil.empty:
                         if saham_ditolak:
                             st.warning(f"⚠️ Beberapa teks diabaikan karena bukan saham valid/tidak ada di tabel: {', '.join(saham_ditolak)}")
                             
-                        # Peringatan limitasi
                         if len(saham_valid) > 20:
                             st.info("ℹ️ Anda memasukkan lebih dari 20 saham. Proses AI mungkin butuh waktu lebih lama (30-60 detik).")
                             
-                        with st.spinner(f"Menyatukan data {len(saham_valid)} saham. Mesin {ai_pilihan} sedang menganalisa..."):
+                        with st.spinner(f"Menyatukan data {len(saham_valid)} saham. AI Sedang mendeteksi bandar..."):
                             import glob
                             import os
                             import pandas as pd
@@ -731,7 +705,6 @@ if not df_hasil.empty:
                                 
                                 if file_arsip:
                                     file_terbaru = max(file_arsip, key=os.path.getctime)
-                                    # Ambil 3 hari terakhir agar AI tidak amnesia baca terlalu banyak teks
                                     df_hist = pd.read_csv(file_terbaru).tail(5)
                                     teks_ringkasan = df_hist.to_string(index=False)
                                 else:
@@ -744,7 +717,6 @@ if not df_hasil.empty:
                                     'histori': teks_ringkasan
                                 }
                             
-                            # Tembakkan ke Mega Prompt AI
                             hasil_ai = analisa_bandar_ai_multisaham(data_kompilasi, ai_pilihan)
                             
                             st.markdown("### 🗣️ Klasemen Eksekusi Bandar:")
