@@ -247,7 +247,6 @@ def analisa_bandar_ai_multisaham(data_saham_dict, pilihan_ai):
         try:
             daftar_model = client.models.list()
             semua_model = [m.id for m in daftar_model.data]
-            
             model_70b = [m for m in semua_model if '70b' in m.lower()]
             if model_70b:
                 model_andalan = model_70b[0] 
@@ -258,31 +257,34 @@ def analisa_bandar_ai_multisaham(data_saham_dict, pilihan_ai):
         except Exception:
             pass 
 
+        # Merakit data menggunakan bahasa Inggris agar AI lebih paham konteksnya
         payload_text = ""
         for ticker, data in data_saham_dict.items():
-            payload_text += f"\nSAHAM {ticker}:\n"
-            payload_text += f"- Harga Terakhir: Rp {data['harga']}\n"
-            payload_text += f"- Status Bandar: {data['status']}\n"
-            payload_text += f"- Skor Teknikal: {data['skor']}/10\n"
-            payload_text += f"- Histori (5 Hari Terakhir):\n{data['histori']}\n"
+            payload_text += f"\n--- STOCK: {ticker} ---\n"
+            payload_text += f"Current Price: Rp {data['harga']}\n"
+            payload_text += f"Wyckoff Phase: {data['status']}\n"
+            payload_text += f"Technical Score: {data['skor']}/10\n"
+            payload_text += f"Historical Trace (Intraday):\n{data['histori']}\n"
 
-        # 2. Mega-Prompt yang Disempurnakan
+        # PROMPT ELITE BAHASA INGGRIS (DENGAN OUTPUT BAHASA INDONESIA)
         prompt = f"""
-        Bertindaklah sebagai "Mega Bandar IHSG" yang sangat tajam dan analitis.
-        Saya memberikan data {len(data_saham_dict)} saham beserta jejak historisnya. 
-        
-        TUGAS UTAMA:
-        Baca semua data tersebut secara komprehensif, namun KAMU HANYA BOLEH MENAMPILKAN 5 SAHAM TERBAIK yang paling siap pom-pom untuk BSJP. Abaikan sisa saham lainnya!
+        You are an elite, highly analytical Indonesian stock market 'Bandar' (Market Maker) tracker.
+        I have provided you with data for {len(data_saham_dict)} stocks. The data includes current prices, Wyckoff phases, and historical daily traces.
 
-        DATA SAHAM:
+        YOUR TASK:
+        Analyze all the provided historical data meticulously. Out of all these stocks, select ONLY THE TOP 5 BEST STOCKS that show the strongest evidence of accumulation and have the highest probability of a "Mark-Up" for a BSJP (Buy Afternoon, Sell Morning) strategy.
+
+        STOCK DATA TO ANALYZE:
         {payload_text}
 
-        ATURAN MUTLAK:
-        1. JANGAN mencetak daftar semua saham. Hanya tampilkan Top 5 Elite.
-        2. Berikan "Skor Pom-Pom" (0-100%) yang realistis berdasarkan data (jangan membuat skor berurutan rapi seperti 95, 94, 93).
-        3. Berikan penjelasan analitis yang tajam (2-3 kalimat) MENGAPA saham ini masuk Top 5 (sebutkan anomali volume, tren MA, atau akumulasi bandarnya dari data historis yang diberikan).
-        4. Tuliskan Trading Plan singkat (Area Beli, Target Jual, Cut Loss).
-        5. Gunakan format Markdown yang rapi.
+        STRICT RULES (MUST FOLLOW):
+        1. OUTPUT LANGUAGE: You MUST write your entire response in Indonesian.
+        2. DO NOT list all stocks. ONLY output your Top 5 selections. Ignore the rest.
+        3. Create a Markdown table with columns: [Peringkat, Ticker, Skor Potensi (0-100%), Status Bandar].
+        4. Below the table, provide a brutally honest, analytical explanation (2-3 sentences) for EACH of the Top 5 stocks. 
+        5. In your explanation, explicitly mention specific data points from the "Historical Trace" (e.g., "Pada tanggal X, volume maksimal mencapai Y dengan tekanan Hajar Kanan") to prove you actually read the data. DO NOT hallucinate.
+        6. Provide a realistic Trading Plan (Buy Area, Target Price, Cut Loss) calculated logically based on the 'Current Price'. NEVER suggest buying at Rp 0.
+        7. No pleasantries. Start immediately with the table.
         """
         
         completion = client.chat.completions.create(
@@ -290,14 +292,14 @@ def analisa_bandar_ai_multisaham(data_saham_dict, pilihan_ai):
             messages=[
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.7,
-            max_tokens=2500,
+            temperature=0.3, # Dibuat lebih rendah (0.3) agar AI lebih logis dan tidak berhalusinasi
+            max_tokens=3000,
             top_p=1,
             stream=False,
         )
         
         hasil = completion.choices[0].message.content
-        catatan = f"\n\n---\n⚡ *Dianalisa secepat kilat menggunakan mesin: **{model_andalan} (Auto-Detect)** via Groq*"
+        catatan = f"\n\n---\n⚡ *Dianalisa mendalam menggunakan mesin: **{model_andalan}** via Groq*"
         
         return hasil + catatan
         
@@ -702,18 +704,17 @@ if not df_hasil.empty:
                             
                             for ticker in saham_valid:
                                 data_saham = df_hasil[df_hasil['Ticker'] == ticker].iloc[0]
-                                harga_akhir = data_saham.get('Harga', data_saham.get('Close', 0))
+                                
+                                # FIX 1: Memanggil nama kolom harga yang benar (Harga (Rp))
+                                harga_akhir = data_saham.get('Harga (Rp)', 0)
                                 status_bandar_akhir = data_saham.get('Fase Siklus Bandar', 'Normal')
                                 skor_akhir = data_saham.get('Total Score', 0)
                                 
-                                file_arsip = glob.glob(f"Arsip_Data_Harian/*{ticker}*.csv")
+                                # FIX 2: Menggunakan fungsi get_historical_summary yang sudah kita buat sebelumnya
+                                teks_ringkasan = get_historical_summary(ticker)
                                 
-                                if file_arsip:
-                                    file_terbaru = max(file_arsip, key=os.path.getctime)
-                                    df_hist = pd.read_csv(file_terbaru).tail(5)
-                                    teks_ringkasan = df_hist.to_string(index=False)
-                                else:
-                                    teks_ringkasan = "Data historis tidak tersedia."
+                                if not teks_ringkasan:
+                                    teks_ringkasan = "Data arsip belum tersedia."
                                 
                                 data_kompilasi[ticker] = {
                                     'harga': harga_akhir,
