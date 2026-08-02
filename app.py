@@ -262,29 +262,31 @@ def analisa_bandar_ai_multisaham(data_saham_dict, pilihan_ai):
         for ticker, data in data_saham_dict.items():
             payload_text += f"\n--- STOCK: {ticker} ---\n"
             payload_text += f"Current Price: Rp {data['harga']}\n"
+            payload_text += f"Today's Change: {data['change']}%\n"
             payload_text += f"Wyckoff Phase: {data['status']}\n"
             payload_text += f"Technical Score: {data['skor']}/10\n"
             payload_text += f"Historical Trace (Intraday):\n{data['histori']}\n"
 
-        # PROMPT ELITE BAHASA INGGRIS (DENGAN OUTPUT BAHASA INDONESIA)
+        # PROMPT ELITE: MENCARI AKUMULASI SENYAP (STEALTH PUMP PREPARATION)
         prompt = f"""
-        You are an elite, highly analytical Indonesian stock market 'Bandar' (Market Maker) tracker.
-        I have provided you with data for {len(data_saham_dict)} stocks. The data includes current prices, Wyckoff phases, and historical daily traces.
+        You are the mastermind of an elite Indonesian stock market syndicate (Mega Bandar). 
+        Your specialty is 'Gorengan' (highly volatile) stocks. You DO NOT buy stocks that have already pumped today. You look for "Stealth Accumulation"—stocks that are currently sideways or slightly up (Change is <= 5%), but have massive hidden accumulation in the historical intraday data, indicating they are ready to EXPLODE to top gainers tomorrow.
+
+        I have filtered and provided {len(data_saham_dict)} candidate stocks that haven't pumped yet today.
 
         YOUR TASK:
-        Analyze all the provided historical data meticulously. Out of all these stocks, select ONLY THE TOP 5 BEST STOCKS that show the strongest evidence of accumulation and have the highest probability of a "Mark-Up" for a BSJP (Buy Afternoon, Sell Morning) strategy.
+        Analyze the 'Historical Trace' carefully. Select ONLY THE TOP 5 STOCKS that have completed their stealth accumulation phase today (by 15:00) and are 100% ready for a massive Mark-Up tomorrow morning (BSJP strategy).
 
         STOCK DATA TO ANALYZE:
         {payload_text}
 
-        STRICT RULES (MUST FOLLOW):
-        1. OUTPUT LANGUAGE: You MUST write your entire response in Indonesian.
-        2. DO NOT list all stocks. ONLY output your Top 5 selections. Ignore the rest.
-        3. Create a Markdown table with columns: [Peringkat, Ticker, Skor Potensi (0-100%), Status Bandar].
-        4. Below the table, provide a brutally honest, analytical explanation (2-3 sentences) for EACH of the Top 5 stocks. 
-        5. In your explanation, explicitly mention specific data points from the "Historical Trace" (e.g., "Pada tanggal X, volume maksimal mencapai Y dengan tekanan Hajar Kanan") to prove you actually read the data. DO NOT hallucinate.
-        6. Provide a realistic Trading Plan (Buy Area, Target Price, Cut Loss) calculated logically based on the 'Current Price'. NEVER suggest buying at Rp 0.
-        7. No pleasantries. Start immediately with the table.
+        STRICT RULES:
+        1. OUTPUT LANGUAGE: MUST be in Indonesian.
+        2. DO NOT list all stocks. ONLY output your Top 5 selections.
+        3. Create a Markdown table: [Peringkat, Ticker, Skor Ledakan (0-100%), Status Saat Ini].
+        4. Below the table, provide a brutally analytical explanation for each stock. You MUST prove why the pump is imminent by citing specific anomalies from the 'Historical Trace' (e.g., "Hari ini harga ditahan sideways di {data['change']}%, tetapi pada tanggal X terjadi lonjakan volume raksasa dengan fase Accumulation...").
+        5. Provide a realistic Trading Plan (Buy Area near Current Price, Target Price for a massive pump >10%, and a tight Cut Loss). 
+        6. Act like a ruthless market maker. No pleasantries. Start immediately with the table.
         """
         
         completion = client.chat.completions.create(
@@ -693,53 +695,57 @@ if not df_hasil.empty:
                             st.warning(f"⚠️ Beberapa teks diabaikan karena bukan saham valid/tidak ada di tabel: {', '.join(saham_ditolak)}")
                             
                         # ==========================================
-                        # FITUR BARU: SMART PRE-FILTER ANTI-LIMIT
+                        # FITUR BARU: SMART PRE-FILTER ANTI-PUCUK & ANTI-LIMIT
                         # ==========================================
-                        if len(saham_valid) > 30:
-                            st.error(f"🚨 Anda memasukkan {len(saham_valid)} saham! Ini akan membuat AI kelebihan beban (Limit Groq Maks 12.000 Token).")
-                            st.info("🤖 **Sistem Otomatis Aktif:** Python sedang menyaring 30 saham terbaik dari daftar Anda (berdasarkan Skor & Volume tertinggi) sebelum dikirim ke AI...")
+                        df_valid = df_hasil[df_hasil['Ticker'].isin(saham_valid)].copy()
+                        
+                        # 1. BUANG SAHAM YANG SUDAH TERBANG (> 5%)
+                        if 'Change (%)' in df_valid.columns:
+                            df_valid = df_valid[df_valid['Change (%)'] <= 5.0]
+                            saham_valid = df_valid['Ticker'].tolist()
+
+                        if not saham_valid:
+                            st.error("❌ Semua saham yang Anda masukkan sudah terbang terlalu tinggi (>5%) atau data tidak valid. Cari saham yang masih di bawah / sideways!")
+                        else:
+                            if len(saham_valid) > 30:
+                                st.info("🤖 **Sistem Otomatis Aktif:** Menyaring 30 saham 'Sideways' terbaik dengan akumulasi terkuat untuk mencegah limit AI...")
+                                df_valid = df_valid.sort_values(by=['Total Score', 'Volume'], ascending=[False, False])
+                                saham_valid = df_valid['Ticker'].head(30).tolist()
+                                st.success(f"✅ Tersisa {len(saham_valid)} saham potensial (Belum terbang tinggi): {', '.join(saham_valid)}")
                             
-                            # Mengambil data saham yang valid, lalu di-ranking
-                            df_valid = df_hasil[df_hasil['Ticker'].isin(saham_valid)].copy()
-                            # Sortir dari skor tertinggi dan volume terbesar
-                            df_valid = df_valid.sort_values(by=['Total Score', 'Volume'], ascending=[False, False])
-                            # Ambil top 30 saja
-                            saham_valid = df_valid['Ticker'].head(30).tolist()
-                            
-                            st.success(f"✅ Selesai disaring! 30 saham elit yang lolos dan dikirim ke AI adalah: {', '.join(saham_valid)}")
-                        # ==========================================
-                            
-                        with st.spinner(f"Menyatukan data {len(saham_valid)} saham terpilih. AI Llama-3 Sedang mendeteksi bandar..."):
-                            import glob
-                            import os
-                            import pandas as pd
-                            
-                            data_kompilasi = {}
-                            
-                            for ticker in saham_valid:
-                                data_saham = df_hasil[df_hasil['Ticker'] == ticker].iloc[0]
+                            with st.spinner(f"Menganalisa {len(saham_valid)} saham. AI sedang mencari jejak Akumulasi Senyap Bandar..."):
+                                import glob
+                                import os
+                                import pandas as pd
                                 
-                                # FIX 1: Memanggil nama kolom harga yang benar (Harga (Rp))
-                                harga_akhir = data_saham.get('Harga (Rp)', 0)
-                                status_bandar_akhir = data_saham.get('Fase Siklus Bandar', 'Normal')
-                                skor_akhir = data_saham.get('Total Score', 0)
+                                data_kompilasi = {}
                                 
-                                # FIX 2: Menggunakan fungsi get_historical_summary yang sudah kita buat sebelumnya
-                                teks_ringkasan = get_historical_summary(ticker)
+                                for ticker in saham_valid:
+                                    data_saham = df_hasil[df_hasil['Ticker'] == ticker].iloc[0]
+                                    
+                                    # FIX 1: Memanggil nama kolom harga yang benar (Harga (Rp))
+                                    harga_akhir = data_saham.get('Harga (Rp)', 0)
+                                    perubahan_persen = data_saham.get('Change (%)', 0) # <--- Data baru untuk AI
+                                    status_bandar_akhir = data_saham.get('Fase Siklus Bandar', 'Normal')
+                                    skor_akhir = data_saham.get('Total Score', 0)
+                                    
+                                    # FIX 2: Menggunakan fungsi get_historical_summary
+                                    teks_ringkasan = get_historical_summary(ticker)
+                                    
+                                    if not teks_ringkasan:
+                                        teks_ringkasan = "Data arsip belum tersedia."
+                                    
+                                    data_kompilasi[ticker] = {
+                                        'harga': harga_akhir,
+                                        'change': perubahan_persen, # <--- Dikirim ke AI
+                                        'status': status_bandar_akhir,
+                                        'skor': skor_akhir,
+                                        'histori': teks_ringkasan
+                                    }
                                 
-                                if not teks_ringkasan:
-                                    teks_ringkasan = "Data arsip belum tersedia."
+                                hasil_ai = analisa_bandar_ai_multisaham(data_kompilasi, ai_pilihan)
                                 
-                                data_kompilasi[ticker] = {
-                                    'harga': harga_akhir,
-                                    'status': status_bandar_akhir,
-                                    'skor': skor_akhir,
-                                    'histori': teks_ringkasan
-                                }
-                            
-                            hasil_ai = analisa_bandar_ai_multisaham(data_kompilasi, ai_pilihan)
-                            
-                            st.markdown("### 🗣️ Klasemen Eksekusi Bandar:")
-                            st.info(hasil_ai)
+                                st.markdown("### 🗣️ Klasemen Eksekusi Bandar:")
+                                st.info(hasil_ai)
 else:
     st.error("Silakan jalankan `update_data.py` terlebih dahulu di terminal untuk memuat data!")
