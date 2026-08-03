@@ -368,6 +368,73 @@ def analisa_forensik_ai(data_saham_dict, master_filters_keys):
     except Exception as e: return f"❌ Gagal memproses data dengan Groq. Error: {e}"
 
 # ==========================================
+# AI PEMBURU ARA - SPESIALIS DNA LEDAKAN (V8)
+# ==========================================
+def analisa_pemburu_ara_ai(data_saham_dict):
+    try:
+        GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
+    except:
+        GROQ_API_KEY = None
+    if not GROQ_API_KEY: return "❌ Kunci API Groq belum dipasang!"
+
+    try:
+        client = Groq(api_key=GROQ_API_KEY)
+        model_andalan = "llama-3.1-70b-versatile" 
+        try:
+            daftar_model = client.models.list()
+            semua_model = [m.id for m in daftar_model.data]
+            model_70b = [m for m in semua_model if '70b' in m.lower()]
+            if model_70b: model_andalan = model_70b[0] 
+            else:
+                model_llama = [m for m in semua_model if 'llama' in m.lower()]
+                if model_llama: model_andalan = model_llama[0]
+        except: pass 
+
+        payload_text = ""
+        for ticker, data in data_saham_dict.items():
+            payload_text += f"\n--- STOCK: {ticker} ---\n"
+            payload_text += f"Current Price: Rp {data['harga']} (Change: {data['change']}%)\n"
+            payload_text += f"RVOL (Volume Anomaly): {data['rvol']}\n"
+            payload_text += f"OBV Trend: {data['obv']}\n"
+            payload_text += f"Bollinger Bands: {data['bb']}\n"
+            payload_text += f"Wyckoff Phase: {data['siklus']}\n"
+            payload_text += f"A/D Power: {data['ad']}\n"
+            payload_text += f"RSI (14D): {data['rsi']}\n"
+            payload_text += f"Historical Trace:\n{data['histori']}\n"
+
+        prompt = f"""
+        You are an Elite Quantitative Analyst and Top Gainer (ARA) Hunter in the Indonesian Stock Market.
+        I am giving you data for {len(data_saham_dict)} candidate stocks.
+
+        YOUR ONLY MISSION:
+        Find stocks that perfectly match the "Explosion DNA Pattern" discovered by our forensic lab. 
+        The exact DNA criteria for an imminent pump are:
+        1. RVOL (Volume Anomaly) is exceptionally high (over 150% or 300%).
+        2. OBV Trend shows 'Accumulation' (Up).
+        3. Bollinger Bands are in a 'Squeeze' or 'Breakout Upper' state.
+        4. Wyckoff Phase is in Accumulation, Mark-Up, or Mark-Down (signaling a reversal).
+        5. A/D Power indicates strong Smart Money Accumulation.
+        6. RSI (14D) is in a safe zone (not extremely overbought).
+
+        STOCK DATA TO ANALYZE:
+        {payload_text}
+
+        STRICT RULES:
+        1. OUTPUT LANGUAGE: You MUST write your entire response in Indonesian.
+        2. DO NOT list all stocks. ONLY output the TOP 3 to 5 stocks that have the highest match percentage with the DNA criteria above. Ignore the weak ones.
+        3. Format your response with a Markdown table: [Peringkat, Ticker, Skor Kecocokan DNA (0-100%), Kesimpulan Utama].
+        4. Below the table, provide a brutally honest, analytical explanation for EACH selected stock. You MUST explicitly state how the stock's data matches the DNA criteria (e.g., mention its RVOL, OBV, and BB status).
+        5. Provide a realistic Trading Plan (Buy Area, Target Price for a massive pump >10%, Cut Loss).
+        6. Start immediately with the table. No pleasantries.
+        """
+        completion = client.chat.completions.create(
+            model=model_andalan, messages=[{"role": "user", "content": prompt}],
+            temperature=0.2, max_tokens=3000, top_p=1, stream=False,
+        )
+        return completion.choices[0].message.content + f"\n\n---\n🎯 *AI Spesialis DNA ARA: **{model_andalan}** via Groq*"
+    except Exception as e: return f"❌ Gagal memproses data dengan Groq. Error: {e}"
+
+# ==========================================
 # SECTION 4: HEADER & SIDEBAR
 # ==========================================
 df_hasil = load_data_saham()
@@ -615,9 +682,9 @@ if not df_hasil.empty:
         if 'Tekanan Bandar' not in df_hasil.columns:
             st.warning("⏳ **Fitur Radar belum menerima data terbaru.** Harap jalankan 'update_data.py'.")
         else:
-            t_v1, t_v2, t_v3, t_v4, t_v5, t_v6, t_v7 = st.tabs([
+            t_v1, t_v2, t_v3, t_v4, t_v5, t_v6, t_v7, t_v8 = st.tabs([
                 "🤫 V1: Senyap", "🌊 V2: Big Cap", "🚀 V3: Spekulasi", "🎯 V4: Squeeze",
-                "👑 V5: Gabungan (V1-V4)", "🤖 V6: AI Bandar (BSJP)", "🔎 V7: Forensik Bandar"
+                "👑 V5: Gabungan (V1-V4)", "🤖 V6: AI Bandar (BSJP)", "🔎 V7: Forensik Bandar", "🎯 V8: Pemburu ARA"
             ])
 
             cond_v1 = ((df_hasil['Kekuatan A/D'] == 'Akumulasi Pro (Smart Money)') & (df_hasil['Status BB'] == 'Squeeze') & (df_hasil['RVOL (Anomali Vol)'].isin(['Ledakan Ekstrem (> 300%)', 'Anomali Tinggi (150-300%)'])) & (df_hasil['Change (%)'] < 5.0) & (df_hasil['OBV Trend'] == 'Akumulasi (Naik)') & (df_hasil['Posisi VWAP'] != 'Di Bawah VWAP (Lemah)'))
@@ -715,5 +782,50 @@ if not df_hasil.empty:
                                 hasil_ai = analisa_forensik_ai(data_kompilasi, daftar_kategori_web)
                                 st.success("✅ DNA Berhasil Dibongkar!")
                                 st.info(hasil_ai)
+
+            # --- V8: AI PEMBURU ARA (EKSEKUTOR DNA KHUSUS) ---
+            with t_v8:
+                st.subheader("🎯 V8: AI Pemburu ARA (Spesialis DNA Ledakan)")
+                st.markdown("Paste daftar saham Anda di sini. AI akan menyeleksi **HANYA** saham yang memenuhi kriteria **DNA ARA** hasil temuan Lab Forensik (RVOL >150%, OBV Naik, BB Squeeze/Breakout, Akumulasi A/D Kuat).")
+                
+                input_v8 = st.text_area("📋 Paste Daftar Saham (Pisahkan dengan Enter/Spasi):", placeholder="Contoh:\nVISI\nPANI\nDMAS", height=200, key="input_v8")
+                
+                if st.button(f"🚀 Mulai Deteksi DNA (V8)"):
+                    import re
+                    saham_bersih = [s.strip().upper() for s in re.split(r'[,\s\n]+', input_v8) if s.strip()]
+                    saham_unik = list(dict.fromkeys(saham_bersih))
+                    saham_valid = [s for s in saham_unik if s in df_hasil['Ticker'].values]
+                    
+                    if not saham_valid:
+                        st.error("❌ Tidak ada kode saham yang valid.")
+                    else:
+                        if len(saham_valid) > 25:
+                            st.info("🤖 Menyaring 25 saham terbaik (berdasarkan Skor & Volume) untuk mencegah limit AI...")
+                            df_valid = df_hasil[df_hasil['Ticker'].isin(saham_valid)].copy()
+                            df_valid = df_valid.sort_values(by=['Total Score', 'Volume'], ascending=[False, False])
+                            saham_valid = df_valid['Ticker'].head(25).tolist()
+                        
+                        with st.spinner(f"Membedah DNA {len(saham_valid)} saham. Mencari kandidat ARA..."):
+                            data_kompilasi = {}
+                            for ticker in saham_valid:
+                                data_saham = df_hasil[df_hasil['Ticker'] == ticker].iloc[0]
+                                teks_ringkasan = get_historical_summary(ticker)
+                                
+                                # Mengambil data spesifik yang diminta oleh strategi DNA
+                                data_kompilasi[ticker] = {
+                                    'harga': data_saham.get('Harga (Rp)', 0),
+                                    'change': data_saham.get('Change (%)', 0),
+                                    'rvol': data_saham.get('RVOL (Anomali Vol)', 'Normal'),
+                                    'obv': data_saham.get('OBV Trend', 'Netral'),
+                                    'bb': data_saham.get('Status BB', 'Normal'),
+                                    'siklus': data_saham.get('Fase Siklus Bandar', 'Normal'),
+                                    'ad': data_saham.get('Kekuatan A/D', 'Netral'),
+                                    'rsi': data_saham.get('RSI (14D)', 50),
+                                    'histori': teks_ringkasan if teks_ringkasan else "Arsip belum tersedia."
+                                }
+                                
+                            hasil_ai_v8 = analisa_pemburu_ara_ai(data_kompilasi)
+                            st.success("✅ Analisis DNA Selesai!")
+                            st.info(hasil_ai_v8)                    
 else:
     st.error("Silakan jalankan `update_data.py` terlebih dahulu di terminal untuk memuat data!")
