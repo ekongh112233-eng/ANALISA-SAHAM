@@ -607,27 +607,22 @@ if not df_hasil.empty:
 
     with tab5:
         st.markdown("## 🦅 Radar BSJP (Beli Sore Jual Pagi) - Spesial Curi Start")
-        st.markdown("<div class='bandar-box-green'><b>💡 INFO STRATEGI:</b> Tab ini berisi 7 gaya deteksi, termasuk V7 (AI Persona Bandar) untuk menganalisis jejak historis saham pilihan Anda.</div>", unsafe_allow_html=True)
+        st.markdown("<div class='bandar-box-green'><b>💡 INFO STRATEGI:</b> Tab ini berisi saringan saham potensial, V8 (Gabungan) untuk melihat semua hasil, dan V7 (AI Bandar) untuk mengeksekusi akhir.</div>", unsafe_allow_html=True)
         
         if 'Tekanan Bandar' not in df_hasil.columns:
             st.warning("⏳ **Fitur Radar belum menerima data terbaru.** Harap jalankan 'update_data.py' dan muat ulang web.")
         else:
-            t_v1, t_v2, t_v3, t_v4, t_v5, t_v6, t_v7 = st.tabs([
-                "⚡ V1: Momentum", 
-                "🎣 V2: Reversal", 
+            # V1 dan V2 dihapus. Diganti dengan V3, V4, V5, V6, V8, dan V7
+            t_v3, t_v4, t_v5, t_v6, t_v8, t_v7 = st.tabs([
                 "🤫 V3: Senyap", 
                 "🌊 V4: Big Cap", 
                 "🚀 V5: Spekulasi",
                 "🎯 V6: Squeeze",
+                "👑 V8: Gabungan (V3-V6)",
                 "🤖 V7: AI Bandar (NEW)"
             ])
 
-            cond_v1 = ((df_hasil['Posisi VWAP'] == 'Di Atas VWAP (Kuat)') & (df_hasil['OBV Trend'] == 'Akumulasi (Naik)') & (df_hasil['Momentum'] == 'Positif') & (df_hasil['Karakter Gorengan'].isin(['Solid (Jarang Dibanting)', 'Normal'])) & (df_hasil['Kelas Transaksi'] != 'Gorengan Sepi (< 5M)') & (df_hasil['Total Score'] >= 4))
-            df_v1 = df_hasil[cond_v1].copy()
-
-            cond_v2 = ((df_hasil['Sinyal Cuci Barang'] == 'Jarum Bawah (Sinyal Pantulan Kuat)') & (df_hasil['Tekanan Bandar'] == 'Dominan Beli (Hajar Kanan)') & (df_hasil['Posisi Entry'].isin(['Dekat Support (Low Risk)', 'Area Tengah'])) & (df_hasil['Kelas Transaksi'] != 'Gorengan Sepi (< 5M)') & (df_hasil['OBV Trend'] != 'Distribusi (Turun)'))
-            df_v2 = df_hasil[cond_v2].copy()
-
+            # --- LOGIKA FILTER V3 SAMPAI V6 (TIDAK BERUBAH) ---
             cond_v3 = ((df_hasil['Kekuatan A/D'] == 'Akumulasi Pro (Smart Money)') & (df_hasil['Status BB'] == 'Squeeze') & (df_hasil['RVOL (Anomali Vol)'].isin(['Ledakan Ekstrem (> 300%)', 'Anomali Tinggi (150-300%)'])) & (df_hasil['Change (%)'] < 5.0) & (df_hasil['OBV Trend'] == 'Akumulasi (Naik)') & (df_hasil['Posisi VWAP'] != 'Di Bawah VWAP (Lemah)'))
             df_v3 = df_hasil[cond_v3].copy()
 
@@ -646,12 +641,12 @@ if not df_hasil.empty:
             cond_v6 = (((df_hasil['Status BB'] == 'Squeeze') | (df_hasil['Fase Siklus Bandar'] == 'Sideways')) & (df_hasil['Trend MA (5,20,50)'].isin(['Perfect Uptrend (5>20>50)', 'Awal Reversal (5>20)'])) & (df_hasil['Kelas Transaksi'] != 'Gorengan Sepi (< 5M)'))
             df_v6 = df_hasil[cond_v6].copy() if 'Trend MA (5,20,50)' in df_hasil.columns else pd.DataFrame()
 
-            with t_v1:
-                st.subheader("⚡ V1: Momentum Breakout")
-                render_strategy_table(df_v1, "BSJP_V1_Momentum")
-            with t_v2:
-                st.subheader("🎣 V2: Reversal Emas (Tangkap Pantulan)")
-                render_strategy_table(df_v2, "BSJP_V2_Reversal")
+            # ==========================================
+            # FITUR BARU: V8 - MENGGABUNGKAN V3 HINGGA V6 DAN MENGHAPUS DUPLIKAT
+            # ==========================================
+            df_v8 = pd.concat([df_v3, df_v4, df_v5, df_v6]).drop_duplicates(subset=['Ticker']).copy()
+            # ==========================================
+
             with t_v3:
                 st.subheader("🤫 V3: Akumulasi Senyap")
                 render_strategy_table(df_v3, "BSJP_V3_Senyap")
@@ -664,10 +659,16 @@ if not df_hasil.empty:
             with t_v6:
                 st.subheader("🎯 V6: Squeeze & Konsolidasi")
                 render_strategy_table(df_v6, "BSJP_V6_SqueezeMA")
+                
+            # RENDER TAB V8 (GABUNGAN)
+            with t_v8:
+                st.subheader("👑 V8: Koleksi Gabungan (V3, V4, V5, V6)")
+                st.markdown("Tabel ini murni mengumpulkan semua saham yang lolos dari saringan V3, V4, V5, dan V6 tanpa ada saham kembar.")
+                render_strategy_table(df_v8, "BSJP_V8_Gabungan")
             
             with t_v7:
                 st.subheader("🤖 V7: Mega-Screener AI (Asisten Manajer Investasi)")
-                st.markdown("Cukup **Copy-Paste** daftar saham dari grup Telegram atau catatan Anda ke kotak di bawah ini.")
+                st.markdown("Cukup **Copy-Paste** daftar saham dari grup Telegram atau hasil **V8** ke kotak di bawah ini.")
                 
                 daftar_mesin = ambil_daftar_ai()
                 ai_pilihan = daftar_mesin[0] if daftar_mesin else 'gemma-4-26b-a4b-it'
@@ -688,64 +689,61 @@ if not df_hasil.empty:
                     saham_valid = [s for s in saham_unik if s in df_hasil['Ticker'].values]
                     saham_ditolak = [s for s in saham_unik if s not in df_hasil['Ticker'].values]
                     
+                    # ==========================================
+                    # FITUR BARU: SMART PRE-FILTER ANTI-PUCUK & ANTI-LIMIT
+                    # ==========================================
+                    df_valid = df_hasil[df_hasil['Ticker'].isin(saham_valid)].copy()
+                    
+                    # 1. BUANG SAHAM YANG SUDAH TERBANG (> 5%)
+                    if 'Change (%)' in df_valid.columns:
+                        df_valid = df_valid[df_valid['Change (%)'] <= 5.0]
+                        saham_valid = df_valid['Ticker'].tolist()
+
                     if not saham_valid:
-                        st.warning("⚠️ Tidak ada saham valid yang ditemukan. Pastikan format penulisan benar.")
+                        st.error("❌ Semua saham yang Anda masukkan sudah terbang terlalu tinggi (>5%) atau data tidak valid. Cari saham yang masih di bawah / sideways!")
                     else:
                         if saham_ditolak:
                             st.warning(f"⚠️ Beberapa teks diabaikan karena bukan saham valid/tidak ada di tabel: {', '.join(saham_ditolak)}")
-                            
-                        # ==========================================
-                        # FITUR BARU: SMART PRE-FILTER ANTI-PUCUK & ANTI-LIMIT
-                        # ==========================================
-                        df_valid = df_hasil[df_hasil['Ticker'].isin(saham_valid)].copy()
                         
-                        # 1. BUANG SAHAM YANG SUDAH TERBANG (> 5%)
-                        if 'Change (%)' in df_valid.columns:
-                            df_valid = df_valid[df_valid['Change (%)'] <= 5.0]
-                            saham_valid = df_valid['Ticker'].tolist()
-
-                        if not saham_valid:
-                            st.error("❌ Semua saham yang Anda masukkan sudah terbang terlalu tinggi (>5%) atau data tidak valid. Cari saham yang masih di bawah / sideways!")
-                        else:
-                            if len(saham_valid) > 30:
-                                st.info("🤖 **Sistem Otomatis Aktif:** Menyaring 30 saham 'Sideways' terbaik dengan akumulasi terkuat untuk mencegah limit AI...")
-                                df_valid = df_valid.sort_values(by=['Total Score', 'Volume'], ascending=[False, False])
-                                saham_valid = df_valid['Ticker'].head(30).tolist()
-                                st.success(f"✅ Tersisa {len(saham_valid)} saham potensial (Belum terbang tinggi): {', '.join(saham_valid)}")
+                        if len(saham_valid) > 30:
+                            st.info("🤖 **Sistem Otomatis Aktif:** Menyaring 30 saham 'Sideways' terbaik dengan akumulasi terkuat untuk mencegah limit AI...")
+                            df_valid = df_valid.sort_values(by=['Total Score', 'Volume'], ascending=[False, False])
+                            saham_valid = df_valid['Ticker'].head(30).tolist()
+                            st.success(f"✅ Tersisa {len(saham_valid)} saham potensial (Belum terbang tinggi): {', '.join(saham_valid)}")
+                        
+                        with st.spinner(f"Menganalisa {len(saham_valid)} saham. AI sedang mencari jejak Akumulasi Senyap Bandar..."):
+                            import glob
+                            import os
+                            import pandas as pd
                             
-                            with st.spinner(f"Menganalisa {len(saham_valid)} saham. AI sedang mencari jejak Akumulasi Senyap Bandar..."):
-                                import glob
-                                import os
-                                import pandas as pd
+                            data_kompilasi = {}
+                            
+                            for ticker in saham_valid:
+                                data_saham = df_hasil[df_hasil['Ticker'] == ticker].iloc[0]
                                 
-                                data_kompilasi = {}
+                                # Memanggil nama kolom harga yang benar (Harga (Rp))
+                                harga_akhir = data_saham.get('Harga (Rp)', 0)
+                                perubahan_persen = data_saham.get('Change (%)', 0) # Data baru untuk AI
+                                status_bandar_akhir = data_saham.get('Fase Siklus Bandar', 'Normal')
+                                skor_akhir = data_saham.get('Total Score', 0)
                                 
-                                for ticker in saham_valid:
-                                    data_saham = df_hasil[df_hasil['Ticker'] == ticker].iloc[0]
-                                    
-                                    # FIX 1: Memanggil nama kolom harga yang benar (Harga (Rp))
-                                    harga_akhir = data_saham.get('Harga (Rp)', 0)
-                                    perubahan_persen = data_saham.get('Change (%)', 0) # <--- Data baru untuk AI
-                                    status_bandar_akhir = data_saham.get('Fase Siklus Bandar', 'Normal')
-                                    skor_akhir = data_saham.get('Total Score', 0)
-                                    
-                                    # FIX 2: Menggunakan fungsi get_historical_summary
-                                    teks_ringkasan = get_historical_summary(ticker)
-                                    
-                                    if not teks_ringkasan:
-                                        teks_ringkasan = "Data arsip belum tersedia."
-                                    
-                                    data_kompilasi[ticker] = {
-                                        'harga': harga_akhir,
-                                        'change': perubahan_persen, # <--- Dikirim ke AI
-                                        'status': status_bandar_akhir,
-                                        'skor': skor_akhir,
-                                        'histori': teks_ringkasan
-                                    }
+                                # Menggunakan fungsi get_historical_summary
+                                teks_ringkasan = get_historical_summary(ticker)
                                 
-                                hasil_ai = analisa_bandar_ai_multisaham(data_kompilasi, ai_pilihan)
+                                if not teks_ringkasan:
+                                    teks_ringkasan = "Data arsip belum tersedia."
                                 
-                                st.markdown("### 🗣️ Klasemen Eksekusi Bandar:")
-                                st.info(hasil_ai)
+                                data_kompilasi[ticker] = {
+                                    'harga': harga_akhir,
+                                    'change': perubahan_persen, 
+                                    'status': status_bandar_akhir,
+                                    'skor': skor_akhir,
+                                    'histori': teks_ringkasan
+                                }
+                            
+                            hasil_ai = analisa_bandar_ai_multisaham(data_kompilasi, ai_pilihan)
+                            
+                            st.markdown("### 🗣️ Klasemen Eksekusi Bandar:")
+                            st.info(hasil_ai)
 else:
     st.error("Silakan jalankan `update_data.py` terlebih dahulu di terminal untuk memuat data!")
