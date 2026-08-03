@@ -428,8 +428,50 @@ def main():
 
         if hasil:
             df_hasil = pd.DataFrame(hasil)
+            
+            # ==========================================
+            # FITUR BARU: MACHINE LEARNING (ISOLATION FOREST)
+            # ==========================================
+            print("🧠 Menjalankan Algoritma Machine Learning (Mendeteksi Anomali Bandar)...")
+            try:
+                from sklearn.ensemble import IsolationForest
+                
+                # AI ML hanya fokus pada 4 indikator krusial ini untuk mencari Anomali
+                fitur_ml = ['Change (%)', 'Volume', 'RSI (14D)', 'Total Score']
+                df_fitur = df_hasil[fitur_ml].fillna(0)
+                
+                # Setup model: Kita asumsikan hanya 5% saham di IHSG yang dimanipulasi Bandar setiap harinya
+                model = IsolationForest(contamination=0.05, random_state=42)
+                
+                # ML mulai belajar dan memprediksi dalam 1 detik
+                df_hasil['ML_Outlier'] = model.fit_predict(df_fitur)
+                
+                status_ml = []
+                for _, row in df_hasil.iterrows():
+                    # Jika terdeteksi anomali (-1), harga belum terbang (<=5%), dan ada volume
+                    if row['ML_Outlier'] == -1 and row['Change (%)'] <= 5.0 and row['Volume'] > 0:
+                        status_ml.append("🔥 ANOMALI BANDAR (Siap Ledakan)")
+                    elif row['ML_Outlier'] == -1 and row['Change (%)'] > 5.0:
+                        status_ml.append("⚠️ Anomali (Sudah Terbang)")
+                    else:
+                        status_ml.append("Biasa / Mengikuti Pasar")
+                        
+                df_hasil['Prediksi Machine Learning'] = status_ml
+                df_hasil.drop(columns=['ML_Outlier'], inplace=True) # Bersihkan kolom hitungan
+                print("✅ Machine Learning selesai mendeteksi anomali!")
+                
+            except ImportError:
+                print("⚠️ Library 'scikit-learn' belum diinstal. Lewati Machine Learning.")
+                df_hasil['Prediksi Machine Learning'] = "Library ML Belum Diinstal"
+            except Exception as e:
+                print(f"⚠️ Machine Learning Error: {e}")
+                df_hasil['Prediksi Machine Learning'] = "Biasa / Mengikuti Pasar"
+            # ==========================================
+
+            # 1. SELALU Simpan Data Utama (Overwrite untuk Web)
             df_hasil.to_csv(FILE_HASIL, index=False)
             
+            # 2. LOGIKA JAM PINTAR
             if 9 <= jam_sekarang < 17:
                 file_exists = os.path.isfile(file_arsip_harian)
                 df_hasil.to_csv(file_arsip_harian, mode='a', header=not file_exists, index=False)
