@@ -280,6 +280,36 @@ def hitung_semua_indikator(df_saham):
     else:
         status_rrr = "Di Area Support"
 
+    # ==========================================
+    # RUMUS BARU: STOCHASTIC OSCILLATOR (14, 3, 3)
+    # ==========================================
+    low_14 = df_saham['Low'].rolling(window=14).min()
+    high_14 = df_saham['High'].rolling(window=14).max()
+    denominator = high_14 - low_14
+    denominator = denominator.replace(0, 0.0001) # Mencegah error pembagian 0
+    
+    df_saham['%K'] = 100 * ((df_saham['Close'] - low_14) / denominator)
+    df_saham['%D'] = df_saham['%K'].rolling(window=3).mean()
+    
+    try:
+        k_val = df_saham['%K'].iloc[-1].item()
+        d_val = df_saham['%D'].iloc[-1].item()
+        
+        if pd.isna(k_val) or pd.isna(d_val):
+            status_stoch = "Netral / Sideways"
+        elif k_val < 20 and d_val < 20:
+            status_stoch = "Oversold (Jenuh Jual - Peluang)"
+        elif k_val > 80 and d_val > 80:
+            status_stoch = "Overbought (Jenuh Beli - Rawan)"
+        elif k_val > d_val and k_val < 50:
+            status_stoch = "Golden Cross (Awal Bullish)"
+        elif k_val < d_val and k_val > 50:
+            status_stoch = "Death Cross (Awal Bearish)"
+        else:
+            status_stoch = "Netral / Sideways"
+    except:
+        status_stoch = "Netral / Sideways"
+
     return {
         "Harga (Rp)": close_today, "Harga MA20": int(ma_20), "Support": int(support_20), "Resistance": int(resist_20),
         "Change (%)": change_pct, "Volume": vol_today, "Vol Breakout": vol_breakout, "RSI (14D)": rsi,
@@ -292,7 +322,8 @@ def hitung_semua_indikator(df_saham):
         "Posisi VWAP": posisi_vwap, "Kekuatan A/D": smart_money, "Kelas Transaksi": kelas_transaksi,
         "RVOL (Anomali Vol)": rvol_status, "Fase Siklus Bandar": siklus, "Karakter Gorengan": karakter_bandar,
         "Sinyal Cuci Barang": deteksi_shakeout, "Streak Harian": info_streak, "Auto Trading Plan": auto_plan,
-        "Status Open": status_open, "Risk/Reward Ratio": status_rrr
+        "Status Open": status_open, "Risk/Reward Ratio": status_rrr,
+        "Status Stochastic": status_stoch # <--- Dimasukkan ke hasil akhir
     }
 
 # ==========================================
