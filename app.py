@@ -706,10 +706,10 @@ if not df_hasil.empty:
                         if saham_ditolak:
                             st.warning(f"⚠️ Beberapa teks diabaikan karena bukan saham valid/tidak ada di tabel: {', '.join(saham_ditolak)}")
                         
-                        if len(saham_valid) > 30:
-                            st.info("🤖 **Sistem Otomatis Aktif:** Menyaring 30 saham 'Sideways' terbaik dengan akumulasi terkuat untuk mencegah limit AI...")
+                        if len(saham_valid) > 20: # <--- Ubah angka 30 jadi 20 di sini
+                            st.info("🤖 **Sistem Otomatis Aktif:** Menyaring 20 saham 'Sideways' terbaik dengan akumulasi terkuat untuk mencegah limit AI...")
                             df_valid = df_valid.sort_values(by=['Total Score', 'Volume'], ascending=[False, False])
-                            saham_valid = df_valid['Ticker'].head(30).tolist()
+                            saham_valid = df_valid['Ticker'].head(20).tolist() # <--- Ubah angka 30 jadi 20 di sini
                             st.success(f"✅ Tersisa {len(saham_valid)} saham potensial (Belum terbang tinggi): {', '.join(saham_valid)}")
                         
                         with st.spinner(f"Menganalisa {len(saham_valid)} saham. AI sedang mencari jejak Akumulasi Senyap Bandar..."):
