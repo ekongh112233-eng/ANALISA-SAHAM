@@ -4,6 +4,7 @@ import numpy as np
 import os
 import time
 import requests
+import xml.etree.ElementTree as ET # <-- Modul baru untuk membaca berita RSS
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from datetime import datetime
@@ -14,9 +15,8 @@ from datetime import datetime
 FILE_SAHAM = "saham.txt"
 FILE_HASIL = "hasil_screener.csv"
 LOCK_FILE = "sedang_update.lock"
-DIR_ARSIP = "Arsip_Data_Harian" # Folder khusus untuk arsip
+DIR_ARSIP = "Arsip_Data_Harian"
 
-# Buat folder arsip jika belum ada
 if not os.path.exists(DIR_ARSIP):
     os.makedirs(DIR_ARSIP)
 
@@ -39,7 +39,7 @@ def load_tickers():
         return [baris.strip().upper() for baris in file if baris.strip()]
 
 # ==========================================
-# SECTION 2: KALKULASI FUNDAMENTAL RINGAN
+# SECTION 2: FUNDAMENTAL & SENTIMEN BERITA
 # ==========================================
 def get_fundamental(ticker_jk):
     try:
@@ -58,10 +58,38 @@ def get_fundamental(ticker_jk):
     
     return kategori_saham, per, pbv
 
+# FITUR BARU: PENYADAP SENTIMEN BERITA GOOGLE NEWS
+def cek_sentimen_berita(ticker, session):
+    url = f"https://news.google.com/rss/search?q={ticker}+saham&hl=id&gl=ID&ceid=ID:id"
+    try:
+        resp = session.get(url, timeout=3)
+        if resp.status_code == 200:
+            root = ET.fromstring(resp.text)
+            # Ambil 5 berita terbaru
+            titles = [item.find('title').text for item in root.findall('.//item')][:5] 
+            
+            # Kamus Kata Kunci (NLP Ringan)
+            pos_words = ['laba', 'meroket', 'akuisisi', 'dividen', 'tumbuh', 'lonjak', 'rekomendasi beli', 'prospek', 'borong', 'triliun', 'untung', 'merger']
+            neg_words = ['rugi', 'anjlok', 'suspend', 'gugat', 'turun', 'merosot', 'jual', 'hancur', 'bengkok', 'utang', 'pailit', 'kasus']
+            
+            score = 0
+            for t in titles:
+                t_lower = t.lower()
+                if any(w in t_lower for w in pos_words): score += 1
+                if any(w in t_lower for w in neg_words): score -= 1
+                
+            if score > 0: return "Sentimen Positif 📰"
+            elif score < 0: return "Sentimen Negatif ⚠️"
+            else: return "Netral / Sepi Berita"
+        return "Netral / Sepi Berita"
+    except:
+        return "Netral / Sepi Berita"
+
 # ==========================================
 # SECTION 3: KALKULASI TEKNIKAL & BANDARMOLOGI
 # ==========================================
-def hitung_semua_indikator(df_saham):
+# UPDATE: Fungsi kini menerima 'ticker' dan 'session' untuk mencari berita
+def hitung_semua_indikator(df_saham, ticker, aman_session):
     close_today = df_saham['Close'].iloc[-1].item()
     close_yest = df_saham['Close'].iloc[-2].item()
     open_today = df_saham['Open'].iloc[-1].item()
@@ -72,6 +100,12 @@ def hitung_semua_indikator(df_saham):
     change_rp = close_today - close_yest
     change_pct = (change_rp / close_yest) * 100
     momentum = "Positif" if change_rp > 0 else "Negatif"
+    
+    # === Eksekusi Sentimen Berita (Hanya untuk saham yang ada transaksi hari ini) ===
+    if vol_today > 0 and close_today >= 50:
+        status_sentimen = cek_sentimen_berita(ticker, aman_session)
+    else:
+        status_sentimen = "Netral / Sepi Berita"
     
     gap_pct = ((open_today - close_yest) / close_yest) * 100
     if gap_pct >= 2.0: status_gap = f"Gap Up (+{gap_pct:.1f}%)"
@@ -280,13 +314,10 @@ def hitung_semua_indikator(df_saham):
     else:
         status_rrr = "Di Area Support"
 
-    # ==========================================
-    # RUMUS BARU: STOCHASTIC OSCILLATOR (14, 3, 3)
-    # ==========================================
     low_14 = df_saham['Low'].rolling(window=14).min()
     high_14 = df_saham['High'].rolling(window=14).max()
     denominator = high_14 - low_14
-    denominator = denominator.replace(0, 0.0001) # Mencegah error pembagian 0
+    denominator = denominator.replace(0, 0.0001) 
     
     df_saham['%K'] = 100 * ((df_saham['Close'] - low_14) / denominator)
     df_saham['%D'] = df_saham['%K'].rolling(window=3).mean()
@@ -295,18 +326,12 @@ def hitung_semua_indikator(df_saham):
         k_val = df_saham['%K'].iloc[-1].item()
         d_val = df_saham['%D'].iloc[-1].item()
         
-        if pd.isna(k_val) or pd.isna(d_val):
-            status_stoch = "Netral / Sideways"
-        elif k_val < 20 and d_val < 20:
-            status_stoch = "Oversold (Jenuh Jual - Peluang)"
-        elif k_val > 80 and d_val > 80:
-            status_stoch = "Overbought (Jenuh Beli - Rawan)"
-        elif k_val > d_val and k_val < 50:
-            status_stoch = "Golden Cross (Awal Bullish)"
-        elif k_val < d_val and k_val > 50:
-            status_stoch = "Death Cross (Awal Bearish)"
-        else:
-            status_stoch = "Netral / Sideways"
+        if pd.isna(k_val) or pd.isna(d_val): status_stoch = "Netral / Sideways"
+        elif k_val < 20 and d_val < 20: status_stoch = "Oversold (Jenuh Jual - Peluang)"
+        elif k_val > 80 and d_val > 80: status_stoch = "Overbought (Jenuh Beli - Rawan)"
+        elif k_val > d_val and k_val < 50: status_stoch = "Golden Cross (Awal Bullish)"
+        elif k_val < d_val and k_val > 50: status_stoch = "Death Cross (Awal Bearish)"
+        else: status_stoch = "Netral / Sideways"
     except:
         status_stoch = "Netral / Sideways"
 
@@ -323,7 +348,8 @@ def hitung_semua_indikator(df_saham):
         "RVOL (Anomali Vol)": rvol_status, "Fase Siklus Bandar": siklus, "Karakter Gorengan": karakter_bandar,
         "Sinyal Cuci Barang": deteksi_shakeout, "Streak Harian": info_streak, "Auto Trading Plan": auto_plan,
         "Status Open": status_open, "Risk/Reward Ratio": status_rrr,
-        "Status Stochastic": status_stoch # <--- Dimasukkan ke hasil akhir
+        "Status Stochastic": status_stoch,
+        "Status Sentimen": status_sentimen # <--- Dimasukkan ke hasil akhir
     }
 
 # ==========================================
@@ -334,11 +360,10 @@ def main():
     with open(LOCK_FILE, "w") as f: f.write("SEDANG PROSES")
 
     try:
-        # Konfigurasi Waktu
         now = datetime.now()
         tanggal_hari_ini = now.strftime("%Y-%m-%d")
         waktu_sekarang = now.strftime("%H:%M")
-        jam_sekarang = now.hour # Mengambil angka jam saat ini (0-23)
+        jam_sekarang = now.hour 
         file_arsip_harian = os.path.join(DIR_ARSIP, f"screener_{tanggal_hari_ini}.csv")
 
         print("⏳ Memulai pembaruan data saham (Ultimate Diagnostic Mode)...")
@@ -367,7 +392,8 @@ def main():
                 if t_jk in data_mentah:
                     df_saham = data_mentah[t_jk].dropna(subset=['Open', 'Close', 'Volume', 'High', 'Low'])
                     if len(df_saham) >= 50:
-                        ind = hitung_semua_indikator(df_saham)
+                        # PENTING: Passing ticker dan session ke dalam fungsi
+                        ind = hitung_semua_indikator(df_saham, ticker, aman_session)
                         kat, per, pbv = get_fundamental(t_jk)
                         
                         score = 0
@@ -381,6 +407,7 @@ def main():
                         if ind["OBV Trend"] == "Akumulasi (Naik)": score += 1   
                         if ind["Tekanan Bandar"] == "Dominan Beli (Hajar Kanan)": score += 1
                         if "Gap Up" in ind["Status Gap"]: score += 1
+                        if ind["Status Sentimen"] == "Sentimen Positif 📰": score += 1 # Menambah skor jika berita bagus
 
                         rekomendasi = "BELI" if score >= 7 else "WAIT & SEE"
                         
@@ -401,17 +428,14 @@ def main():
 
         if hasil:
             df_hasil = pd.DataFrame(hasil)
-            
-            # 1. SELALU Simpan Data Utama (Overwrite untuk Web)
             df_hasil.to_csv(FILE_HASIL, index=False)
             
-            # 2. LOGIKA JAM PINTAR (Hanya simpan arsip antara jam 09:00 s/d 16:59)
             if 9 <= jam_sekarang < 17:
                 file_exists = os.path.isfile(file_arsip_harian)
                 df_hasil.to_csv(file_arsip_harian, mode='a', header=not file_exists, index=False)
                 print(f"✅ Selesai! Data Web diperbarui & Diarsipkan ke: {file_arsip_harian}")
             else:
-                print(f"✅ Selesai! Data Web diperbarui. (Mode Malam 🌙: Pengarsipan dinonaktifkan agar data historis tetap bersih).")
+                print(f"✅ Selesai! Data Web diperbarui. (Mode Malam 🌙: Pengarsipan dinonaktifkan).")
                 
         else:
             print("\n⚠️ GAGAL TOTAL: Proses selesai namun list hasil kosong.")
