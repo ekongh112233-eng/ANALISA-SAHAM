@@ -796,16 +796,25 @@ if not df_hasil.empty:
                     saham_unik = list(dict.fromkeys(saham_bersih))
                     saham_valid = [s for s in saham_unik if s in df_hasil['Ticker'].values]
                     
+                    # ==========================================
+                    # FITUR BARU: ANTI-PUCUK V8 (HANYA SAHAM DATAR/MERAH)
+                    # ==========================================
+                    df_valid = df_hasil[df_hasil['Ticker'].isin(saham_valid)].copy()
+                    
+                    if 'Change (%)' in df_valid.columns:
+                        # HANYA MELOLOSKAN SAHAM YANG NAIK MAKSIMAL 5% (Bisa Anda ganti ke 3.0 jika ingin lebih ketat)
+                        df_valid = df_valid[df_valid['Change (%)'] <= 5.0]
+                        saham_valid = df_valid['Ticker'].tolist()
+
                     if not saham_valid:
-                        st.error("❌ Tidak ada kode saham yang valid.")
+                        st.error("❌ Semua saham yang Anda masukkan sudah terbang terlalu tinggi (>5%). Masukkan saham yang MASIH DATAR atau MERAH!")
                     else:
-                        if len(saham_valid) > 15: # <--- Ubah ke 15
-                            st.info("🤖 Menyaring 15 saham terbaik (berdasarkan Skor & Volume) untuk mencegah limit AI...")
-                            df_valid = df_hasil[df_hasil['Ticker'].isin(saham_valid)].copy()
+                        if len(saham_valid) > 15:
+                            st.info("🤖 Menyaring 15 saham 'Sideways' terbaik untuk mencegah limit AI...")
                             df_valid = df_valid.sort_values(by=['Total Score', 'Volume'], ascending=[False, False])
-                            saham_valid = df_valid['Ticker'].head(15).tolist() # <--- Ubah ke 15
+                            saham_valid = df_valid['Ticker'].head(15).tolist()
                         
-                        with st.spinner(f"Membedah DNA {len(saham_valid)} saham. Mencari kandidat ARA..."):
+                        with st.spinner(f"Membedah DNA {len(saham_valid)} saham yang masih datar. Mencari kandidat ARA..."):
                             data_kompilasi = {}
                             for ticker in saham_valid:
                                 data_saham = df_hasil[df_hasil['Ticker'] == ticker].iloc[0]
