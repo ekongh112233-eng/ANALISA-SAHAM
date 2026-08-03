@@ -607,68 +607,69 @@ if not df_hasil.empty:
 
     with tab5:
         st.markdown("## 🦅 Radar BSJP (Beli Sore Jual Pagi) - Spesial Curi Start")
-        st.markdown("<div class='bandar-box-green'><b>💡 INFO STRATEGI:</b> Tab ini berisi saringan saham potensial, V8 (Gabungan) untuk melihat semua hasil, dan V7 (AI Bandar) untuk mengeksekusi akhir.</div>", unsafe_allow_html=True)
+        st.markdown("<div class='bandar-box-green'><b>💡 INFO STRATEGI:</b> Tab ini berisi saringan saham potensial, V5 (Gabungan) untuk melihat semua hasil, dan V6 (AI Bandar) untuk mengeksekusi akhir.</div>", unsafe_allow_html=True)
         
         if 'Tekanan Bandar' not in df_hasil.columns:
             st.warning("⏳ **Fitur Radar belum menerima data terbaru.** Harap jalankan 'update_data.py' dan muat ulang web.")
         else:
-            # V1 dan V2 dihapus. Diganti dengan V3, V4, V5, V6, V8, dan V7
-            t_v3, t_v4, t_v5, t_v6, t_v8, t_v7 = st.tabs([
-                "🤫 V3: Senyap", 
-                "🌊 V4: Big Cap", 
-                "🚀 V5: Spekulasi",
-                "🎯 V6: Squeeze",
-                "👑 V8: Gabungan (V3-V6)",
-                "🤖 V7: AI Bandar (NEW)"
+            # Susunan nama tab sudah dirapikan berurutan (V1 - V6)
+            t_v1, t_v2, t_v3, t_v4, t_v5, t_v6 = st.tabs([
+                "🤫 V1: Senyap", 
+                "🌊 V2: Big Cap", 
+                "🚀 V3: Spekulasi",
+                "🎯 V4: Squeeze",
+                "👑 V5: Gabungan (V1-V4)",
+                "🤖 V6: AI Bandar (NEW)"
             ])
 
-            # --- LOGIKA FILTER V3 SAMPAI V6 (TIDAK BERUBAH) ---
-            cond_v3 = ((df_hasil['Kekuatan A/D'] == 'Akumulasi Pro (Smart Money)') & (df_hasil['Status BB'] == 'Squeeze') & (df_hasil['RVOL (Anomali Vol)'].isin(['Ledakan Ekstrem (> 300%)', 'Anomali Tinggi (150-300%)'])) & (df_hasil['Change (%)'] < 5.0) & (df_hasil['OBV Trend'] == 'Akumulasi (Naik)') & (df_hasil['Posisi VWAP'] != 'Di Bawah VWAP (Lemah)'))
-            df_v3 = df_hasil[cond_v3].copy()
+            # --- LOGIKA FILTER (Rumus sama persis, hanya ubah nama variabel agar rapi) ---
+            cond_v1 = ((df_hasil['Kekuatan A/D'] == 'Akumulasi Pro (Smart Money)') & (df_hasil['Status BB'] == 'Squeeze') & (df_hasil['RVOL (Anomali Vol)'].isin(['Ledakan Ekstrem (> 300%)', 'Anomali Tinggi (150-300%)'])) & (df_hasil['Change (%)'] < 5.0) & (df_hasil['OBV Trend'] == 'Akumulasi (Naik)') & (df_hasil['Posisi VWAP'] != 'Di Bawah VWAP (Lemah)'))
+            df_v1 = df_hasil[cond_v1].copy()
 
-            cond_v4 = (
+            cond_v2 = (
                 (df_hasil['Kategori'].isin(['Big Cap (Lapis 1)', 'Mid Cap (Lapis 2)'])) & 
                 ((df_hasil['Status BB'] == 'Squeeze') | (df_hasil['Fase Siklus Bandar'] == 'Sideways')) & 
                 (df_hasil['Trend MA (5,20,50)'].isin(['Perfect Uptrend (5>20>50)', 'Awal Reversal (5>20)'])) & 
                 (df_hasil['OBV Trend'] == 'Akumulasi (Naik)') & 
                 (df_hasil['Total Score'] >= 6)
             )
-            df_v4 = df_hasil[cond_v4].copy() 
+            df_v2 = df_hasil[cond_v2].copy() 
 
-            cond_v5 = ((df_hasil['Kategori'] == 'Small Cap (Lapis 3)') & (df_hasil['Tekanan Bandar'] == 'Dominan Beli (Hajar Kanan)') & (df_hasil['Vol Breakout'] == 'Tembus MA20') & (df_hasil['Kelas Transaksi'].isin(['Sultan (> 50M/hari)', 'Ritel Aktif (5M - 50M)'])) & ((df_hasil['Status Bandar'] == 'Akumulasi Kuat') | (df_hasil['OBV Trend'] == 'Akumulasi (Naik)')))
-            df_v5 = df_hasil[cond_v5].copy()
+            cond_v3 = ((df_hasil['Kategori'] == 'Small Cap (Lapis 3)') & (df_hasil['Tekanan Bandar'] == 'Dominan Beli (Hajar Kanan)') & (df_hasil['Vol Breakout'] == 'Tembus MA20') & (df_hasil['Kelas Transaksi'].isin(['Sultan (> 50M/hari)', 'Ritel Aktif (5M - 50M)'])) & ((df_hasil['Status Bandar'] == 'Akumulasi Kuat') | (df_hasil['OBV Trend'] == 'Akumulasi (Naik)')))
+            df_v3 = df_hasil[cond_v3].copy()
 
-            cond_v6 = (((df_hasil['Status BB'] == 'Squeeze') | (df_hasil['Fase Siklus Bandar'] == 'Sideways')) & (df_hasil['Trend MA (5,20,50)'].isin(['Perfect Uptrend (5>20>50)', 'Awal Reversal (5>20)'])) & (df_hasil['Kelas Transaksi'] != 'Gorengan Sepi (< 5M)'))
-            df_v6 = df_hasil[cond_v6].copy() if 'Trend MA (5,20,50)' in df_hasil.columns else pd.DataFrame()
+            cond_v4 = (((df_hasil['Status BB'] == 'Squeeze') | (df_hasil['Fase Siklus Bandar'] == 'Sideways')) & (df_hasil['Trend MA (5,20,50)'].isin(['Perfect Uptrend (5>20>50)', 'Awal Reversal (5>20)'])) & (df_hasil['Kelas Transaksi'] != 'Gorengan Sepi (< 5M)'))
+            df_v4 = df_hasil[cond_v4].copy() if 'Trend MA (5,20,50)' in df_hasil.columns else pd.DataFrame()
 
             # ==========================================
-            # FITUR BARU: V8 - MENGGABUNGKAN V3 HINGGA V6 DAN MENGHAPUS DUPLIKAT
+            # V5 - MENGGABUNGKAN V1 HINGGA V4 DAN MENGHAPUS DUPLIKAT
             # ==========================================
-            df_v8 = pd.concat([df_v3, df_v4, df_v5, df_v6]).drop_duplicates(subset=['Ticker']).copy()
+            df_v5 = pd.concat([df_v1, df_v2, df_v3, df_v4]).drop_duplicates(subset=['Ticker']).copy()
             # ==========================================
 
+            with t_v1:
+                st.subheader("🤫 V1: Akumulasi Senyap")
+                render_strategy_table(df_v1, "BSJP_V1_Senyap")
+            with t_v2:
+                st.subheader("🌊 V2: Big Cap Squeeze (Akumulasi Tenang)")
+                render_strategy_table(df_v2, "BSJP_V2_BigCapSqueeze")
             with t_v3:
-                st.subheader("🤫 V3: Akumulasi Senyap")
-                render_strategy_table(df_v3, "BSJP_V3_Senyap")
+                st.subheader("🚀 V3: Spekulasi Lapis 3 (High Risk)")
+                render_strategy_table(df_v3, "BSJP_V3_Spekulasi")
             with t_v4:
-                st.subheader("🌊 V4: Big Cap Squeeze (Akumulasi Tenang)")
-                render_strategy_table(df_v4, "BSJP_V4_BigCapSqueeze")
-            with t_v5:
-                st.subheader("🚀 V5: Spekulasi Lapis 3 (High Risk)")
-                render_strategy_table(df_v5, "BSJP_V5_Spekulasi")
-            with t_v6:
-                st.subheader("🎯 V6: Squeeze & Konsolidasi")
-                render_strategy_table(df_v6, "BSJP_V6_SqueezeMA")
+                st.subheader("🎯 V4: Squeeze & Konsolidasi")
+                render_strategy_table(df_v4, "BSJP_V4_SqueezeMA")
                 
-            # RENDER TAB V8 (GABUNGAN)
-            with t_v8:
-                st.subheader("👑 V8: Koleksi Gabungan (V3, V4, V5, V6)")
-                st.markdown("Tabel ini murni mengumpulkan semua saham yang lolos dari saringan V3, V4, V5, dan V6 tanpa ada saham kembar.")
-                render_strategy_table(df_v8, "BSJP_V8_Gabungan")
+            # RENDER TAB V5 (GABUNGAN)
+            with t_v5:
+                st.subheader("👑 V5: Koleksi Gabungan (V1, V2, V3, V4)")
+                st.markdown("Tabel ini murni mengumpulkan semua saham yang lolos dari saringan V1, V2, V3, dan V4 tanpa ada saham kembar.")
+                render_strategy_table(df_v5, "BSJP_V5_Gabungan")
             
-            with t_v7:
-                st.subheader("🤖 V7: Mega-Screener AI (Asisten Manajer Investasi)")
-                st.markdown("Cukup **Copy-Paste** daftar saham dari grup Telegram atau hasil **V8** ke kotak di bawah ini.")
+            # RENDER TAB V6 (AI BANDAR)
+            with t_v6:
+                st.subheader("🤖 V6: Mega-Screener AI (Asisten Manajer Investasi)")
+                st.markdown("Cukup **Copy-Paste** daftar saham dari grup Telegram atau hasil **V5** ke kotak di bawah ini.")
                 
                 daftar_mesin = ambil_daftar_ai()
                 ai_pilihan = daftar_mesin[0] if daftar_mesin else 'gemma-4-26b-a4b-it'
@@ -690,7 +691,7 @@ if not df_hasil.empty:
                     saham_ditolak = [s for s in saham_unik if s not in df_hasil['Ticker'].values]
                     
                     # ==========================================
-                    # FITUR BARU: SMART PRE-FILTER ANTI-PUCUK & ANTI-LIMIT
+                    # FITUR: SMART PRE-FILTER ANTI-PUCUK & ANTI-LIMIT
                     # ==========================================
                     df_valid = df_hasil[df_hasil['Ticker'].isin(saham_valid)].copy()
                     
@@ -721,13 +722,11 @@ if not df_hasil.empty:
                             for ticker in saham_valid:
                                 data_saham = df_hasil[df_hasil['Ticker'] == ticker].iloc[0]
                                 
-                                # Memanggil nama kolom harga yang benar (Harga (Rp))
                                 harga_akhir = data_saham.get('Harga (Rp)', 0)
-                                perubahan_persen = data_saham.get('Change (%)', 0) # Data baru untuk AI
+                                perubahan_persen = data_saham.get('Change (%)', 0)
                                 status_bandar_akhir = data_saham.get('Fase Siklus Bandar', 'Normal')
                                 skor_akhir = data_saham.get('Total Score', 0)
                                 
-                                # Menggunakan fungsi get_historical_summary
                                 teks_ringkasan = get_historical_summary(ticker)
                                 
                                 if not teks_ringkasan:
