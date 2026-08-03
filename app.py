@@ -799,11 +799,11 @@ if not df_hasil.empty:
                     if not saham_valid:
                         st.error("❌ Tidak ada kode saham yang valid.")
                     else:
-                        if len(saham_valid) > 25:
-                            st.info("🤖 Menyaring 25 saham terbaik (berdasarkan Skor & Volume) untuk mencegah limit AI...")
+                        if len(saham_valid) > 15: # <--- Ubah ke 15
+                            st.info("🤖 Menyaring 15 saham terbaik (berdasarkan Skor & Volume) untuk mencegah limit AI...")
                             df_valid = df_hasil[df_hasil['Ticker'].isin(saham_valid)].copy()
                             df_valid = df_valid.sort_values(by=['Total Score', 'Volume'], ascending=[False, False])
-                            saham_valid = df_valid['Ticker'].head(25).tolist()
+                            saham_valid = df_valid['Ticker'].head(15).tolist() # <--- Ubah ke 15
                         
                         with st.spinner(f"Membedah DNA {len(saham_valid)} saham. Mencari kandidat ARA..."):
                             data_kompilasi = {}
