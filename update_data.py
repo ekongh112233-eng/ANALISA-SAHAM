@@ -335,6 +335,26 @@ def hitung_semua_indikator(df_saham, ticker, aman_session):
     except:
         status_stoch = "Netral / Sideways"
 
+    # ==========================================
+    # RUMUS BARU: DETEKSI SUPPLY KERING (VOLUME DRY-UP)
+    # ==========================================
+    try:
+        vol_3_avg = df_saham['Volume'].rolling(window=3).mean().iloc[-1].item()
+        if vol_ma_20 > 0:
+            rasio_kering = vol_3_avg / vol_ma_20
+            # Jika volume susut di bawah 40% dari rata-rata dan harga tidak sedang volatile (Bandwidth < 12%)
+            if rasio_kering < 0.40 and bandwidth < 12.0:  
+                status_supply = "Supply Kering (Siap Pump) 🏜️"
+            # Jika volume meledak lebih dari 2x lipat TAPI harga malah turun/merah (Distribusi masif)
+            elif rasio_kering > 2.0 and close_today < open_today:
+                status_supply = "Supply Banjir (Distribusi) 🌊"
+            else:
+                status_supply = "Normal / Sedang Transisi"
+        else:
+            status_supply = "Normal / Sedang Transisi"
+    except:
+        status_supply = "Normal / Sedang Transisi"
+
     return {
         "Harga (Rp)": close_today, "Harga MA20": int(ma_20), "Support": int(support_20), "Resistance": int(resist_20),
         "Change (%)": change_pct, "Volume": vol_today, "Vol Breakout": vol_breakout, "RSI (14D)": rsi,
@@ -349,7 +369,8 @@ def hitung_semua_indikator(df_saham, ticker, aman_session):
         "Sinyal Cuci Barang": deteksi_shakeout, "Streak Harian": info_streak, "Auto Trading Plan": auto_plan,
         "Status Open": status_open, "Risk/Reward Ratio": status_rrr,
         "Status Stochastic": status_stoch,
-        "Status Sentimen": status_sentimen # <--- Dimasukkan ke hasil akhir
+        "Status Sentimen": status_sentimen,
+        "Kondisi Supply": status_supply # <--- MENU BARU KITA
     }
 
 # ==========================================
