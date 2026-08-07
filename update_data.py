@@ -542,6 +542,21 @@ def main():
             print("\n⚠️ GAGAL TOTAL: Proses selesai namun list hasil kosong.")
     finally:
         if os.path.exists(LOCK_FILE): os.remove(LOCK_FILE)
+        
+        # --- ROBOT PEMBERSIH ARSIP OTOMATIS ---
+        import glob
+        try:
+            arsip_files = glob.glob(os.path.join(DIR_ARSIP, "screener_*.csv"))
+            if len(arsip_files) > 6:
+                # Urutkan dari yang paling baru ke paling lama
+                arsip_files.sort(reverse=True)
+                # Ambil file ke-7 dan seterusnya untuk dihapus
+                file_usang = arsip_files[6:]
+                for f in file_usang:
+                    os.remove(f)
+                    print(f"🗑️ Membersihkan arsip lama: {f}")
+        except Exception as e:
+            pass
 
 if __name__ == "__main__":
     main()

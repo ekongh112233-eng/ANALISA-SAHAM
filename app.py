@@ -181,7 +181,7 @@ def get_historical_summary(ticker):
     arsip_files = glob.glob("Arsip_Data_Harian/screener_*.csv")
     if not arsip_files: return None
     arsip_files.sort(reverse=True)
-    arsip_files = arsip_files[:60]
+    arsip_files = arsip_files[:5]
     
     df_list = []
     for file in arsip_files:
@@ -213,7 +213,7 @@ def get_forensic_data(ticker):
     arsip_files = glob.glob("Arsip_Data_Harian/screener_*.csv")
     if not arsip_files: return None
     arsip_files.sort(reverse=True)
-    arsip_files = arsip_files[:30] 
+    arsip_files = arsip_files[:5] 
     
     df_list = []
     for file in arsip_files:
