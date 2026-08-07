@@ -703,7 +703,7 @@ if not df_hasil.empty:
             df_v5 = df_hasil[cond_v5].copy() if not df_hasil.empty and 'RSI (14D)' in df_hasil.columns else pd.DataFrame()
 
             # MEMBAGI MENJADI 2 TAB UTAMA YANG RAPI
-            tab_screener, tab_ai = st.tabs(["🎯 Screener Spesial (V1 - V5)", "🧠 Asisten AI (V6 - V8)"])
+            tab_screener, tab_ai = st.tabs(["🎯 Screener Spesial", "🧠 Asisten AI"])
             
             # ===============================================
             # AREA SCREENER OTOMATIS
