@@ -404,16 +404,24 @@ def main():
             print("❌ ERROR FATAL: Yahoo Finance menolak permintaan data.")
             return
 
-        hasil = []
-        error_count = 0
+        # ===============================================
+        # MESIN MULTITHREADING (AKSELERASI AMAN ANTI-BANNED)
+        # ===============================================
+        import concurrent.futures
+        import random
+        import time
 
-        for ticker in daftar_saham:
+        print("⚡ Memproses teknikal, fundamental & berita secara Paralel (Safe Mode)...")
+        
+        def proses_saham(ticker):
+            # Jeda napas acak (0.1 - 0.5 detik) agar tidak dianggap robot spam oleh Yahoo/Google
+            time.sleep(random.uniform(0.1, 0.5)) 
+            
             try:
                 t_jk = f"{ticker}.JK"
                 if t_jk in data_mentah:
                     df_saham = data_mentah[t_jk].dropna(subset=['Open', 'Close', 'Volume', 'High', 'Low'])
                     if len(df_saham) >= 50:
-                        # PENTING: Passing ticker dan session ke dalam fungsi
                         ind = hitung_semua_indikator(df_saham, ticker, aman_session)
                         kat, per, pbv = get_fundamental(t_jk)
                         
@@ -428,7 +436,7 @@ def main():
                         if ind["OBV Trend"] == "Akumulasi (Naik)": score += 1   
                         if ind["Tekanan Bandar"] == "Dominan Beli (Hajar Kanan)": score += 1
                         if "Gap Up" in ind["Status Gap"]: score += 1
-                        if ind["Status Sentimen"] == "Sentimen Positif 📰": score += 1 # Menambah skor jika berita bagus
+                        if ind.get("Status Sentimen") == "Sentimen Positif 📰": score += 1
 
                         rekomendasi = "BELI" if score >= 7 else "WAIT & SEE"
                         
@@ -442,10 +450,18 @@ def main():
                             "Total Score": score, "Rekomendasi": rekomendasi, 
                             "Status Akuisisi": "TIDAK ADA", "Terakhir Update": now.strftime("%Y-%m-%d %H:%M:%S")
                         })
-                        hasil.append(data_akhir)
+                        return data_akhir
             except Exception as e:
-                error_count += 1
-                print(f"⚠️ Error pada perhitungan saham {ticker}: {e}")
+                pass
+            return None
+
+        # Membuka 5 jalur pekerja sekaligus (Kecepatan ideal dan aman dari Banned)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+            hasil_paralel = list(executor.map(proses_saham, daftar_saham))
+            
+        # Menggabungkan hasil yang sukses
+        hasil = [h for h in hasil_paralel if h is not None]
+        # ===============================================
 
         if hasil:
             df_hasil = pd.DataFrame(hasil)
