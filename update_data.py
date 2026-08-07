@@ -4,18 +4,21 @@ import numpy as np
 import os
 import time
 import requests
-import xml.etree.ElementTree as ET # <-- Modul baru untuk membaca berita RSS
+import xml.etree.ElementTree as ET # <-- Modul untuk membaca berita RSS
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from datetime import datetime
 
 # ==========================================
-# SECTION 1: KONFIGURASI & SESSION ANTI-BLOKIR
+# SECTION 1: KONFIGURASI & TOKEN CURIAN BROKSUM
 # ==========================================
 FILE_SAHAM = "saham.txt"
 FILE_HASIL = "hasil_screener.csv"
 LOCK_FILE = "sedang_update.lock"
 DIR_ARSIP = "Arsip_Data_Harian"
+
+# Token curian Stockbit Anda (pastikan diperbarui jika masa aktifnya habis)
+TOKEN_CURIAN = "eyJhbGciOiJSUzI1NiIsImtpZCI6ImExNWQ5OGE2LTdkYzgtNDM3NS05NDk0LTEyOWJlM2RlODVkNCIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7InVzZSI6Ik1VSEFNTUFERUtPTlVHUk9ITyIsImVtYSI6Im11aGFtbWFkZWtvbnVncm9obzRAZ21haWwuY29tIiwiZnVsIjoiTVVIQU1NQUQgRUtPIE5VR1JPSE8iLCJzZXMiOiIyV3V2OXYxTDZLTURVTkpnIiwiZHZjIjoiYWFiNmIyYjFmYTBjYmE0M2FjMjA4ZGNiZmQzMDAwNzAiLCJ1aWQiOjU2NTY4OTUsImNvdSI6IklEIn0sImV4cCI6MTc4NjIwODE1NiwiaWF0IjoxNzg2MTIxNzU2LCJpc3MiOiJTVE9DS0JJVCIsImp0aSI6IjJiY2QxMjg4LWY0NzEtNGFmNS1hZmEyLTU5NzYyNzFhM2U5NyIsIm5iZiI6MTc4NjEyMTc1NiwidmVyIjoidjEifQ.A10CYc6pR0DbEUNIbBbuo-GVQRwpaGYVQAyjD85nOD7bCYpOYx4fwwTGPmkVM_xuObRhNeTmxXQ0cU-Io1sA6w2qMIx9GdNlOD_q8WpU5S73foyHet2y7uJqpfdlQ78ASahDw2iEf9-G6fyfg3Fsys34IbZwdm9mRt2sqtCeLLHFYnzVSEhqdsCG5g4gob4dF5bIlEisZoYoyRUKSyHO63LDV7hAjmS_T74Z7dMqRj3KCcG3Zc21Q3vRkyuAAoX-gB3c_9j4uUnVr3r1j7HhEHF8Q5EWVb0ZL49LS5XtxfEMgbBqwv3xttV8-3o8bgCpA6xgcj451GVDKHTNtZcLUg" # <-- Ganti dengan token lengkap Anda di sini
 
 if not os.path.exists(DIR_ARSIP):
     os.makedirs(DIR_ARSIP)
@@ -39,7 +42,7 @@ def load_tickers():
         return [baris.strip().upper() for baris in file if baris.strip()]
 
 # ==========================================
-# SECTION 2: FUNDAMENTAL & SENTIMEN BERITA
+# SECTION 2: FUNDAMENTAL, SENTIMEN & BROKSUM
 # ==========================================
 def get_fundamental(ticker_jk):
     try:
@@ -58,17 +61,52 @@ def get_fundamental(ticker_jk):
     
     return kategori_saham, per, pbv
 
-# FITUR BARU: PENYADAP SENTIMEN BERITA GOOGLE NEWS
+# FUNGSI PENYADAP BROKSUM STOCKBIT (AMAN DARI CRASH)
+def get_broksum_aman(ticker):
+    url = f"https://exodus.stockbit.com/marketdetectors/{ticker}?transaction_type=TRANSACTION_TYPE_NET&market_board=MARKET_BOARD_REGULER&investor_type=INVESTOR_TYPE_ALL&limit=25"
+    headers = {
+        "Authorization": f"Bearer {TOKEN_CURIAN}",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Origin": "https://stockbit.com",
+        "Referer": f"https://stockbit.com/symbol/{ticker}"
+    }
+    
+    try:
+        response = requests.get(url, headers=headers, timeout=3)
+        if response.status_code == 200:
+            data = response.json().get('data', {})
+            
+            # Mengambil Top 3 Buyer
+            buy = data.get('broker_summary', {}).get('brokers_buy', [])
+            top_buy = [b['netbs_broker_code'] for b in buy[:3]]
+            
+            # Mengambil Top 3 Seller
+            sell = data.get('broker_summary', {}).get('brokers_sell', [])
+            top_sell = [s['netbs_broker_code'] for s in sell[:3]]
+            
+            # Mengambil Status Akumulasi/Distribusi Bandar
+            status_acc = data.get('bandar_detector', {}).get('broker_accdist', 'Neutral')
+            
+            return f"B: {', '.join(top_buy) if top_buy else '-'} | S: {', '.join(top_sell) if top_sell else '-'} | ({status_acc})"
+        
+        elif response.status_code in [401, 403]:
+            return "Token Mati (Perlu Update)"
+        else:
+            return f"Error HTTP {response.status_code}"
+    except requests.exceptions.Timeout:
+        return "Timeout Broksum"
+    except Exception:
+        return "Gagal Load Broksum"
+
+# PENYADAP SENTIMEN BERITA GOOGLE NEWS
 def cek_sentimen_berita(ticker, session):
     url = f"https://news.google.com/rss/search?q={ticker}+saham&hl=id&gl=ID&ceid=ID:id"
     try:
         resp = session.get(url, timeout=3)
         if resp.status_code == 200:
             root = ET.fromstring(resp.text)
-            # Ambil 5 berita terbaru
             titles = [item.find('title').text for item in root.findall('.//item')][:5] 
             
-            # Kamus Kata Kunci (NLP Ringan)
             pos_words = ['laba', 'meroket', 'akuisisi', 'dividen', 'tumbuh', 'lonjak', 'rekomendasi beli', 'prospek', 'borong', 'triliun', 'untung', 'merger']
             neg_words = ['rugi', 'anjlok', 'suspend', 'gugat', 'turun', 'merosot', 'jual', 'hancur', 'bengkok', 'utang', 'pailit', 'kasus']
             
@@ -88,7 +126,6 @@ def cek_sentimen_berita(ticker, session):
 # ==========================================
 # SECTION 3: KALKULASI TEKNIKAL & BANDARMOLOGI
 # ==========================================
-# UPDATE: Fungsi kini menerima 'ticker' dan 'session' untuk mencari berita
 def hitung_semua_indikator(df_saham, ticker, aman_session):
     close_today = df_saham['Close'].iloc[-1].item()
     close_yest = df_saham['Close'].iloc[-2].item()
@@ -101,7 +138,6 @@ def hitung_semua_indikator(df_saham, ticker, aman_session):
     change_pct = (change_rp / close_yest) * 100
     momentum = "Positif" if change_rp > 0 else "Negatif"
     
-    # === Eksekusi Sentimen Berita (Hanya untuk saham yang ada transaksi hari ini) ===
     if vol_today > 0 and close_today >= 50:
         status_sentimen = cek_sentimen_berita(ticker, aman_session)
     else:
@@ -335,17 +371,12 @@ def hitung_semua_indikator(df_saham, ticker, aman_session):
     except:
         status_stoch = "Netral / Sideways"
 
-    # ==========================================
-    # RUMUS BARU: DETEKSI SUPPLY KERING (VOLUME DRY-UP)
-    # ==========================================
     try:
         vol_3_avg = df_saham['Volume'].rolling(window=3).mean().iloc[-1].item()
         if vol_ma_20 > 0:
             rasio_kering = vol_3_avg / vol_ma_20
-            # Jika volume susut di bawah 40% dari rata-rata dan harga tidak sedang volatile (Bandwidth < 12%)
             if rasio_kering < 0.40 and bandwidth < 12.0:  
                 status_supply = "Supply Kering (Siap Pump) 🏜️"
-            # Jika volume meledak lebih dari 2x lipat TAPI harga malah turun/merah (Distribusi masif)
             elif rasio_kering > 2.0 and close_today < open_today:
                 status_supply = "Supply Banjir (Distribusi) 🌊"
             else:
@@ -370,11 +401,11 @@ def hitung_semua_indikator(df_saham, ticker, aman_session):
         "Status Open": status_open, "Risk/Reward Ratio": status_rrr,
         "Status Stochastic": status_stoch,
         "Status Sentimen": status_sentimen,
-        "Kondisi Supply": status_supply # <--- MENU BARU KITA
+        "Kondisi Supply": status_supply
     }
 
 # ==========================================
-# SECTION 4: EKSEKUSI UTAMA (MODE DETEKTIF)
+# SECTION 4: EKSEKUSI UTAMA (MULTITHREADING AMAN)
 # ==========================================
 def main():
     if os.path.exists(LOCK_FILE): os.remove(LOCK_FILE)
@@ -404,17 +435,12 @@ def main():
             print("❌ ERROR FATAL: Yahoo Finance menolak permintaan data.")
             return
 
-        # ===============================================
-        # MESIN MULTITHREADING (AKSELERASI AMAN ANTI-BANNED)
-        # ===============================================
         import concurrent.futures
         import random
-        import time
 
-        print("⚡ Memproses teknikal, fundamental & berita secara Paralel (Safe Mode)...")
+        print("⚡ Memproses teknikal, fundamental, berita & broksum secara Paralel (Safe Mode)...")
         
         def proses_saham(ticker):
-            # Jeda napas acak (0.1 - 0.5 detik) agar tidak dianggap robot spam oleh Yahoo/Google
             time.sleep(random.uniform(0.1, 0.5)) 
             
             try:
@@ -424,6 +450,9 @@ def main():
                     if len(df_saham) >= 50:
                         ind = hitung_semua_indikator(df_saham, ticker, aman_session)
                         kat, per, pbv = get_fundamental(t_jk)
+                        
+                        # Sadap Broksum Stockbit
+                        broksum_info = get_broksum_aman(ticker)
                         
                         score = 0
                         if ind["Vol Breakout"] == "Tembus MA20": score += 1
@@ -444,7 +473,15 @@ def main():
                         elif per > 25 or pbv > 3.0: valuasi = "Overvalued (Mahal)"
                         else: valuasi = "Fair Value (Wajar)"
                         
-                        data_akhir = {"Waktu Update": waktu_sekarang, "Ticker": ticker, "Kategori": kat, "Valuasi": valuasi, "PER (x)": per, "PBV (x)": pbv}
+                        data_akhir = {
+                            "Waktu Update": waktu_sekarang, 
+                            "Ticker": ticker, 
+                            "Broksum": broksum_info,  # <--- KOLOM BROKSUM TERPASANG
+                            "Kategori": kat, 
+                            "Valuasi": valuasi, 
+                            "PER (x)": per, 
+                            "PBV (x)": pbv
+                        }
                         data_akhir.update(ind)
                         data_akhir.update({
                             "Total Score": score, "Rekomendasi": rekomendasi, 
@@ -455,37 +492,26 @@ def main():
                 pass
             return None
 
-        # Membuka 5 jalur pekerja sekaligus (Kecepatan ideal dan aman dari Banned)
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
             hasil_paralel = list(executor.map(proses_saham, daftar_saham))
             
-        # Menggabungkan hasil yang sukses
         hasil = [h for h in hasil_paralel if h is not None]
-        # ===============================================
 
         if hasil:
             df_hasil = pd.DataFrame(hasil)
             
-            # ==========================================
-            # FITUR BARU: MACHINE LEARNING (ISOLATION FOREST)
-            # ==========================================
             print("🧠 Menjalankan Algoritma Machine Learning (Mendeteksi Anomali Bandar)...")
             try:
                 from sklearn.ensemble import IsolationForest
                 
-                # AI ML hanya fokus pada 4 indikator krusial ini untuk mencari Anomali
                 fitur_ml = ['Change (%)', 'Volume', 'RSI (14D)', 'Total Score']
                 df_fitur = df_hasil[fitur_ml].fillna(0)
                 
-                # Setup model: Kita asumsikan hanya 5% saham di IHSG yang dimanipulasi Bandar setiap harinya
                 model = IsolationForest(contamination=0.05, random_state=42)
-                
-                # ML mulai belajar dan memprediksi dalam 1 detik
                 df_hasil['ML_Outlier'] = model.fit_predict(df_fitur)
                 
                 status_ml = []
                 for _, row in df_hasil.iterrows():
-                    # Jika terdeteksi anomali (-1), harga belum terbang (<=5%), dan ada volume
                     if row['ML_Outlier'] == -1 and row['Change (%)'] <= 5.0 and row['Volume'] > 0:
                         status_ml.append("🔥 ANOMALI BANDAR (Siap Ledakan)")
                     elif row['ML_Outlier'] == -1 and row['Change (%)'] > 5.0:
@@ -494,7 +520,7 @@ def main():
                         status_ml.append("Biasa / Mengikuti Pasar")
                         
                 df_hasil['Prediksi Machine Learning'] = status_ml
-                df_hasil.drop(columns=['ML_Outlier'], inplace=True) # Bersihkan kolom hitungan
+                df_hasil.drop(columns=['ML_Outlier'], inplace=True)
                 print("✅ Machine Learning selesai mendeteksi anomali!")
                 
             except ImportError:
@@ -503,19 +529,15 @@ def main():
             except Exception as e:
                 print(f"⚠️ Machine Learning Error: {e}")
                 df_hasil['Prediksi Machine Learning'] = "Biasa / Mengikuti Pasar"
-            # ==========================================
 
-            # 1. SELALU Simpan Data Utama (Overwrite untuk Web)
             df_hasil.to_csv(FILE_HASIL, index=False)
             
-            # 2. LOGIKA JAM PINTAR
             if 9 <= jam_sekarang < 17:
                 file_exists = os.path.isfile(file_arsip_harian)
                 df_hasil.to_csv(file_arsip_harian, mode='a', header=not file_exists, index=False)
                 print(f"✅ Selesai! Data Web diperbarui & Diarsipkan ke: {file_arsip_harian}")
             else:
                 print(f"✅ Selesai! Data Web diperbarui. (Mode Malam 🌙: Pengarsipan dinonaktifkan).")
-                
         else:
             print("\n⚠️ GAGAL TOTAL: Proses selesai namun list hasil kosong.")
     finally:
