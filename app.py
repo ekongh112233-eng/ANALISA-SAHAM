@@ -702,6 +702,18 @@ if not df_hasil.empty:
             cond_v5 = ((df_hasil['Kategori'] == 'Small Cap (Lapis 3)') & (df_hasil['Vol Breakout'] == 'Tembus MA20') & (df_hasil['Fase Siklus Bandar'] == 'Accumulation (Kumpul Barang)') & (df_hasil['RSI (14D)'] <= 50))
             df_v5 = df_hasil[cond_v5].copy() if not df_hasil.empty and 'RSI (14D)' in df_hasil.columns else pd.DataFrame()
 
+            # ===============================================
+            # TAMBAHAN RUMUS 6, 7, 8 (KOMBINASI SUPPLY & SENTIMEN)
+            # ===============================================
+            cond_v6 = ((df_hasil['Kategori'] == 'Small Cap (Lapis 3)') & (df_hasil['Tekanan Bandar'] == 'Dominan Beli (Hajar Kanan)') & (df_hasil.get('Kondisi Supply', '') == 'Supply Kering (Siap Pump) 🏜️') & (df_hasil.get('Status Stochastic', '') == 'Oversold (Jenuh Jual - Peluang)'))
+            df_v6 = df_hasil[cond_v6].copy() if not df_hasil.empty else pd.DataFrame()
+
+            cond_v7 = ((df_hasil['Kategori'] == 'Small Cap (Lapis 3)') & (df_hasil.get('Kondisi Supply', '') == 'Supply Kering (Siap Pump) 🏜️') & (df_hasil['Tekanan Bandar'] == 'Dominan Beli (Hajar Kanan)') & (df_hasil.get('Status Stochastic', '') == 'Golden Cross (Awal Bullish)'))
+            df_v7 = df_hasil[cond_v7].copy() if not df_hasil.empty else pd.DataFrame()
+
+            cond_v8 = ((df_hasil['Kategori'] == 'Small Cap (Lapis 3)') & (df_hasil.get('Kondisi Supply', '') == 'Supply Kering (Siap Pump) 🏜️') & (df_hasil['OBV Trend'] == 'Akumulasi (Naik)') & (df_hasil['Pola Candle'] == 'Doji (Ragu-ragu)') & (df_hasil.get('Status Sentimen', '') == 'Sentimen Positif 📰'))
+            df_v8 = df_hasil[cond_v8].copy() if not df_hasil.empty else pd.DataFrame()
+
             # MEMBAGI MENJADI 2 TAB UTAMA YANG RAPI
             tab_screener, tab_ai = st.tabs(["🎯 Screener Spesial", "🧠 Asisten AI"])
             
@@ -716,7 +728,10 @@ if not df_hasil.empty:
                         "Rumus 2 (Small Cap + Tembus MA20 + Akumulasi Vol Normal)", 
                         "Rumus 3 (Small Cap + Tembus MA20 + Support Oversold)", 
                         "Rumus 4 (Small Cap + Tembus MA20 + Bottom Fishing Bullish)", 
-                        "Rumus 5 (Small Cap + Tembus MA20 + Akumulasi RSI Bearish)"
+                        "Rumus 5 (Small Cap + Tembus MA20 + Akumulasi RSI Bearish)",
+                        "Rumus 6 (Small Cap + Hajar Kanan + Supply Kering + Oversold)",
+                        "Rumus 7 (Small Cap + Hajar Kanan + Supply Kering + Golden Cross)",
+                        "Rumus 8 (Small Cap + Supply Kering + OBV Naik + Doji + Sentimen Positif)"
                     ]
                 )
                 
@@ -731,6 +746,12 @@ if not df_hasil.empty:
                     render_strategy_table(df_v4, "Screener_Rumus_4")
                 elif "Rumus 5" in pilihan_v:
                     render_strategy_table(df_v5, "Screener_Rumus_5")
+                elif "Rumus 6" in pilihan_v:
+                    render_strategy_table(df_v6, "Screener_Rumus_6")
+                elif "Rumus 7" in pilihan_v:
+                    render_strategy_table(df_v7, "Screener_Rumus_7")
+                elif "Rumus 8" in pilihan_v:
+                    render_strategy_table(df_v8, "Screener_Rumus_8")
 
             # ===============================================
             # AREA KECERDASAN BUATAN (AI)
