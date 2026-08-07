@@ -710,27 +710,27 @@ if not df_hasil.empty:
             # ===============================================
             with tab_screener:
                 pilihan_v = st.selectbox(
-                    "Pilih Versi Screener:",
+                    "Pilih Rumus Screener:",
                     [
-                        "V1: Rumus 1 (Small Cap + Tembus MA20 + Oversold)", 
-                        "V2: Rumus 2 (Small Cap + Tembus MA20 + Akumulasi Vol Normal)", 
-                        "V3: Rumus 3 (Small Cap + Tembus MA20 + Support Oversold)", 
-                        "V4: Rumus 4 (Small Cap + Tembus MA20 + Bottom Fishing Bullish)", 
-                        "V5: Rumus 5 (Small Cap + Tembus MA20 + Akumulasi RSI Bearish)"
+                        "Rumus 1 (Small Cap + Tembus MA20 + Oversold)", 
+                        "Rumus 2 (Small Cap + Tembus MA20 + Akumulasi Vol Normal)", 
+                        "Rumus 3 (Small Cap + Tembus MA20 + Support Oversold)", 
+                        "Rumus 4 (Small Cap + Tembus MA20 + Bottom Fishing Bullish)", 
+                        "Rumus 5 (Small Cap + Tembus MA20 + Akumulasi RSI Bearish)"
                     ]
                 )
                 
                 st.markdown("---")
-                if "V1" in pilihan_v:
-                    render_strategy_table(df_v1, "BSJP_V1_Senyap")
-                elif "V2" in pilihan_v:
-                    render_strategy_table(df_v2, "BSJP_V2_BigCap")
-                elif "V3" in pilihan_v:
-                    render_strategy_table(df_v3, "BSJP_V3_Spekulasi")
-                elif "V4" in pilihan_v:
-                    render_strategy_table(df_v4, "BSJP_V4_Squeeze")
-                elif "V5" in pilihan_v:
-                    render_strategy_table(df_v5, "BSJP_V5_Gabungan")
+                if "Rumus 1" in pilihan_v:
+                    render_strategy_table(df_v1, "Screener_Rumus_1")
+                elif "Rumus 2" in pilihan_v:
+                    render_strategy_table(df_v2, "Screener_Rumus_2")
+                elif "Rumus 3" in pilihan_v:
+                    render_strategy_table(df_v3, "Screener_Rumus_3")
+                elif "Rumus 4" in pilihan_v:
+                    render_strategy_table(df_v4, "Screener_Rumus_4")
+                elif "Rumus 5" in pilihan_v:
+                    render_strategy_table(df_v5, "Screener_Rumus_5")
 
             # ===============================================
             # AREA KECERDASAN BUATAN (AI)
@@ -739,20 +739,20 @@ if not df_hasil.empty:
                 pilihan_ai = st.selectbox(
                     "Pilih Mode Analisis AI:",
                     [
-                        "🤖 V6: AI Bandar (Persiapan BSJP)", 
-                        "🔎 V7: Forensik Bandar (Bongkar DNA ARA)", 
-                        "🎯 V8: Pemburu ARA (Spesialis DNA Ledakan)"
+                        "🤖 AI Bandar (Persiapan BSJP)", 
+                        "🔎 Forensik Bandar (Bongkar DNA ARA)", 
+                        "🎯 Pemburu ARA (Spesialis DNA Ledakan)"
                     ]
                 )
                 st.markdown("---")
                 
-                # --- LOGIKA V6 ---
-                if "V6" in pilihan_ai:
-                    st.subheader("🤖 V6: AI Bandar (Persiapan BSJP Besok)")
+                # --- LOGIKA AI BANDAR ---
+                if "AI Bandar" in pilihan_ai:
+                    st.subheader("🤖 AI Bandar (Persiapan BSJP Besok)")
                     st.markdown("Paste saham yang MASIH MERAH / SIDEWAYS. AI akan mencari siapa yang siap terbang besok.")
-                    input_saham_massal = st.text_area("📋 Paste Daftar Saham (Pisahkan dengan Enter/Spasi):", placeholder="Contoh:\nDMAS\nINDF", height=200, key="input_v6")
+                    input_saham_massal = st.text_area("📋 Paste Daftar Saham (Pisahkan dengan Enter/Spasi):", placeholder="Contoh:\nDMAS\nINDF", height=200, key="input_ai_bandar")
                     
-                    if st.button(f"🔮 Mulai Eksekusi V6"):
+                    if st.button(f"🔮 Mulai Eksekusi AI Bandar"):
                         import re
                         saham_bersih = [s.strip().upper() for s in re.split(r'[,\s\n]+', input_saham_massal) if s.strip()]
                         saham_unik = list(dict.fromkeys(saham_bersih))
@@ -764,7 +764,7 @@ if not df_hasil.empty:
                             saham_valid = df_valid['Ticker'].tolist()
 
                         if not saham_valid:
-                            st.error("❌ Saham yang Anda masukkan sudah terbang terlalu tinggi (>5%). Gunakan V6 untuk mencari saham yang masih di bawah!")
+                            st.error("❌ Saham yang Anda masukkan sudah terbang terlalu tinggi (>5%). Gunakan AI Bandar untuk mencari saham yang masih di bawah!")
                         else:
                             if len(saham_valid) > 20:
                                 st.info("🤖 Menyaring 20 saham terbaik untuk mencegah limit AI...")
@@ -786,13 +786,13 @@ if not df_hasil.empty:
                                 hasil_ai = analisa_bandar_ai_multisaham(data_kompilasi, 'gemma-4-26b-a4b-it')
                                 st.info(hasil_ai)
 
-                # --- LOGIKA V7 ---
-                elif "V7" in pilihan_ai:
-                    st.subheader("🔎 V7: Laboratorium Forensik Bandar (Bongkar DNA Top Gainer)")
+                # --- LOGIKA FORENSIK BANDAR ---
+                elif "Forensik Bandar" in pilihan_ai:
+                    st.subheader("🔎 Forensik Bandar (Bongkar DNA Top Gainer)")
                     st.markdown("Paste saham-saham yang **HARI INI ARA ATAU NAIK >10%**. AI akan memutar mundur waktu ke H-3, membongkar polanya, dan menciptakan racikan *Screener* untuk Anda!")
-                    input_forensik = st.text_area("📋 Paste Daftar Saham ARA/Top Gainer Hari Ini:", placeholder="Contoh:\nVISI\nBBHI\nPANI", height=200, key="input_v7")
+                    input_forensik = st.text_area("📋 Paste Daftar Saham ARA/Top Gainer Hari Ini:", placeholder="Contoh:\nVISI\nBBHI\nPANI", height=200, key="input_forensik")
                     
-                    if st.button(f"🔬 Mulai Proses Forensik V7"):
+                    if st.button(f"🔬 Mulai Proses Forensik"):
                         import re
                         saham_bersih = [s.strip().upper() for s in re.split(r'[,\s\n]+', input_forensik) if s.strip()]
                         saham_unik = list(dict.fromkeys(saham_bersih))
@@ -820,13 +820,13 @@ if not df_hasil.empty:
                                     st.success("✅ DNA Berhasil Dibongkar!")
                                     st.info(hasil_ai)
 
-                # --- LOGIKA V8 ---
-                elif "V8" in pilihan_ai:
-                    st.subheader("🎯 V8: AI Pemburu ARA (Spesialis DNA Ledakan)")
+                # --- LOGIKA PEMBURU ARA ---
+                elif "Pemburu ARA" in pilihan_ai:
+                    st.subheader("🎯 Pemburu ARA (Spesialis DNA Ledakan)")
                     st.markdown("Paste daftar saham Anda di sini. AI akan menyeleksi **HANYA** saham yang memenuhi kriteria **DNA ARA** (RVOL >150%, OBV Naik, BB Squeeze/Breakout, Akumulasi A/D Kuat).")
-                    input_v8 = st.text_area("📋 Paste Daftar Saham (Pisahkan dengan Enter/Spasi):", placeholder="Contoh:\nVISI\nPANI\nDMAS", height=200, key="input_v8")
+                    input_v8 = st.text_area("📋 Paste Daftar Saham (Pisahkan dengan Enter/Spasi):", placeholder="Contoh:\nVISI\nPANI\nDMAS", height=200, key="input_pemburu_ara")
                     
-                    if st.button(f"🚀 Mulai Deteksi DNA (V8)"):
+                    if st.button(f"🚀 Mulai Deteksi DNA"):
                         import re
                         saham_bersih = [s.strip().upper() for s in re.split(r'[,\s\n]+', input_v8) if s.strip()]
                         saham_unik = list(dict.fromkeys(saham_bersih))
