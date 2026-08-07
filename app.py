@@ -117,7 +117,6 @@ if not os.path.exists(FILE_CONFIG):
     with open(FILE_CONFIG, "w") as f: json.dump(DEFAULT_CONFIG, f, indent=4)
 else:
     with open(FILE_CONFIG, "r") as f: cek_config = json.load(f)
-    # PAKSA UPDATE OTOMATIS jika menu "Kondisi Supply" belum ada di cache
     if "Kondisi Supply" not in cek_config.get("MASTER_FILTERS", {}):
         with open(FILE_CONFIG, "w") as f: json.dump(DEFAULT_CONFIG, f, indent=4)
 
@@ -210,12 +209,11 @@ def get_historical_summary(ticker):
         summary_text += f"📅 {date} | Buka: {open_price} | Tutup: {close_price} | Max Vol Harian: {max_vol} | Tekanan Akhir: {tekanan_akhir} | Siklus Wyckoff: {siklus}\n"
     return summary_text
 
-# ---> FITUR BARU: MESIN WAKTU FORENSIK (H-3) <---
 def get_forensic_data(ticker):
     arsip_files = glob.glob("Arsip_Data_Harian/screener_*.csv")
     if not arsip_files: return None
     arsip_files.sort(reverse=True)
-    arsip_files = arsip_files[:30] # Ambil max 30 hari ke belakang
+    arsip_files = arsip_files[:30] 
     
     df_list = []
     for file in arsip_files:
@@ -233,11 +231,10 @@ def get_forensic_data(ticker):
     df_history = pd.concat(df_list, ignore_index=True)
     df_history = df_history.sort_values(by=["Tanggal", "Waktu Update"])
     
-    # Memutar waktu: Buang hari ini, ambil 3 hari sebelumnya
     tanggal_unik = sorted(df_history["Tanggal"].unique())
     if len(tanggal_unik) > 1:
-        tanggal_unik = tanggal_unik[:-1] # Buang hari ini (saat saham sudah ARA)
-        tanggal_unik = tanggal_unik[-3:] # Ambil tepat 3 hari ke belakang
+        tanggal_unik = tanggal_unik[:-1] 
+        tanggal_unik = tanggal_unik[-3:] 
     else:
         return "Data historis sebelum hari ini belum tersedia di arsip."
         
@@ -282,6 +279,7 @@ def analisa_bandar_ai_multisaham(data_saham_dict, pilihan_ai):
             payload_text += f"\n--- STOCK: {ticker} ---\n"
             payload_text += f"Current Price: Rp {data['harga']}\n"
             payload_text += f"Today's Change: {data['change']}%\n"
+            payload_text += f"Broker Summary: {data['broksum']}\n"
             payload_text += f"Wyckoff Phase: {data['status']}\n"
             payload_text += f"Technical Score: {data['skor']}/10\n"
             payload_text += f"Historical Trace (Intraday):\n{data['histori']}\n"
@@ -293,7 +291,7 @@ def analisa_bandar_ai_multisaham(data_saham_dict, pilihan_ai):
         I have filtered and provided {len(data_saham_dict)} candidate stocks that haven't pumped yet today.
 
         YOUR TASK:
-        Analyze the 'Historical Trace' carefully. Select ONLY THE TOP 5 STOCKS that have completed their stealth accumulation phase today (by 15:00) and are 100% ready for a massive Mark-Up tomorrow morning (BSJP strategy).
+        Analyze the 'Historical Trace' and 'Broker Summary' carefully. Select ONLY THE TOP 5 STOCKS that have completed their stealth accumulation phase today (by 15:00) and are 100% ready for a massive Mark-Up tomorrow morning (BSJP strategy).
 
         STOCK DATA TO ANALYZE:
         {payload_text}
@@ -302,7 +300,7 @@ def analisa_bandar_ai_multisaham(data_saham_dict, pilihan_ai):
         1. OUTPUT LANGUAGE: MUST be in Indonesian.
         2. DO NOT list all stocks. ONLY output your Top 5 selections.
         3. Create a Markdown table: [Peringkat, Ticker, Skor Ledakan (0-100%), Status Saat Ini].
-        4. Below the table, provide a brutally analytical explanation for each stock. Prove why the pump is imminent by citing specific anomalies from the 'Historical Trace'.
+        4. Below the table, provide a brutally analytical explanation for each stock. Prove why the pump is imminent by citing specific anomalies from the 'Historical Trace' and 'Broker Summary'.
         5. Provide a realistic Trading Plan (Buy Area near Current Price, Target Price for a massive pump >10%, and a tight Cut Loss). 
         6. Act like a ruthless market maker. No pleasantries. Start immediately with the table.
         """
@@ -337,6 +335,7 @@ def analisa_forensik_ai(data_saham_dict, master_filters_keys):
         payload_text = ""
         for ticker, data in data_saham_dict.items():
             payload_text += f"\n--- STOCK: {ticker} ---\n"
+            payload_text += f"Broker Summary (Hari H): {data['broksum']}\n"
             payload_text += f"{data['histori']}\n"
 
         prompt = f"""
@@ -344,7 +343,7 @@ def analisa_forensik_ai(data_saham_dict, master_filters_keys):
         I am giving you the historical data of {len(data_saham_dict)} stocks from EXACTLY 1 TO 3 DAYS BEFORE they skyrocketed to Top Gainers / ARA (>10%). This is their condition BEFORE the pump.
 
         YOUR OBJECTIVE:
-        1. Reverse engineer the 'Bandar' strategy. Find the exact common "DNA" or hidden patterns that occurred in these stocks during the 3 days BEFORE they exploded.
+        1. Reverse engineer the 'Bandar' strategy. Find the exact common "DNA" or hidden patterns that occurred in these stocks during the 3 days BEFORE they exploded, including their Broker Summary activity.
         2. Cross-reference your findings with the EXISTING WEB FILTERS in my application.
         3. Suggest new metrics if my existing filters are missing the secret sauce.
 
@@ -396,6 +395,7 @@ def analisa_pemburu_ara_ai(data_saham_dict):
         for ticker, data in data_saham_dict.items():
             payload_text += f"\n--- STOCK: {ticker} ---\n"
             payload_text += f"Current Price: Rp {data['harga']} (Change: {data['change']}%)\n"
+            payload_text += f"Broker Summary: {data['broksum']}\n"
             payload_text += f"RVOL (Volume Anomaly): {data['rvol']}\n"
             payload_text += f"OBV Trend: {data['obv']}\n"
             payload_text += f"Bollinger Bands: {data['bb']}\n"
@@ -417,6 +417,7 @@ def analisa_pemburu_ara_ai(data_saham_dict):
         4. Wyckoff Phase is in Accumulation, Mark-Up, or Mark-Down (signaling a reversal).
         5. A/D Power indicates strong Smart Money Accumulation.
         6. RSI (14D) is in a safe zone (not extremely overbought).
+        7. Broker Summary shows active Top Buyers (Accumulation) from known manipulative brokers.
 
         STOCK DATA TO ANALYZE:
         {payload_text}
@@ -425,7 +426,7 @@ def analisa_pemburu_ara_ai(data_saham_dict):
         1. OUTPUT LANGUAGE: You MUST write your entire response in Indonesian.
         2. DO NOT list all stocks. ONLY output the TOP 3 to 5 stocks that have the highest match percentage with the DNA criteria above. Ignore the weak ones.
         3. Format your response with a Markdown table: [Peringkat, Ticker, Skor Kecocokan DNA (0-100%), Kesimpulan Utama].
-        4. Below the table, provide a brutally honest, analytical explanation for EACH selected stock. You MUST explicitly state how the stock's data matches the DNA criteria (e.g., mention its RVOL, OBV, and BB status).
+        4. Below the table, provide a brutally honest, analytical explanation for EACH selected stock. You MUST explicitly state how the stock's data matches the DNA criteria (e.g., mention its RVOL, OBV, BB status, and Broker activity).
         5. Provide a realistic Trading Plan (Buy Area, Target Price for a massive pump >10%, Cut Loss).
         6. Start immediately with the table. No pleasantries.
         """
@@ -520,10 +521,10 @@ def warna_tabel(val):
     if isinstance(val, (int, float)): 
         return 'color: #22c55e; font-weight: 600;' if val > 0 else ('color: #ef4444; font-weight: 600;' if val < 0 else '')
     elif isinstance(val, str):
-        if any(x in val for x in ["Positif", "Uptrend", "BELI", "Breakout Upper", "Bottom Rebound", "DALAM AKUISISI", "Rendah", "▲", "Golden Cross", "Bullish", "Tembus MA20", "Akumulasi", "Big Cap", "Gap Up", "Dominan Beli", "Undervalued", "Marubozu", "Dekat Support", "Hammer", "Di Atas VWAP", "Sultan", "Ledakan Ekstrem", "Solid", "Mark-Up", "Jarum Bawah", "Naik", "Open = Low", "Sangat Menarik", "Perfect Uptrend", "Awal Reversal"]): return 'color: #22c55e; font-weight: 600;'
-        elif any(x in val for x in ["Negatif", "Downtrend", "WAIT & SEE", "Tinggi", "▼", "Death Cross", "Bearish", "Distribusi", "Small Cap", "Gap Down", "Dominan Jual", "Overvalued", "Rawan Pucuk", "Di Bawah VWAP", "Gorengan Sepi", "Sepi", "Tiang Jemuran", "Mark-Down", "Turun", "Open = High", "Tidak Ideal", "Strong Downtrend"]): return 'color: #ef4444; font-weight: 600;'
+        if any(x in val for x in ["Positif", "Uptrend", "BELI", "Breakout Upper", "Bottom Rebound", "DALAM AKUISISI", "Rendah", "▲", "Golden Cross", "Bullish", "Tembus MA20", "Akumulasi", "Big Cap", "Gap Up", "Dominan Beli", "Undervalued", "Marubozu", "Dekat Support", "Hammer", "Di Atas VWAP", "Sultan", "Ledakan Ekstrem", "Solid", "Mark-Up", "Jarum Bawah", "Naik", "Open = Low", "Sangat Menarik", "Perfect Uptrend", "Awal Reversal", "Acc"]): return 'color: #22c55e; font-weight: 600;'
+        elif any(x in val for x in ["Negatif", "Downtrend", "WAIT & SEE", "Tinggi", "▼", "Death Cross", "Bearish", "Distribusi", "Small Cap", "Gap Down", "Dominan Jual", "Overvalued", "Rawan Pucuk", "Di Bawah VWAP", "Gorengan Sepi", "Sepi", "Tiang Jemuran", "Mark-Down", "Turun", "Open = High", "Tidak Ideal", "Strong Downtrend", "Dist", "Token Mati", "Gagal", "Timeout"]): return 'color: #ef4444; font-weight: 600;'
         elif val == "> 1 Miliar": return 'color: #3b82f6; font-weight: 600;'
-        elif any(x in val for x in ["Squeeze", "RENCANA AKUISISI", "Sedang", "Mid Cap", "Seimbang", "Fair Value", "Area Tengah", "Doji", "Ritel Aktif", "Anomali", "Accumulation", "Sideways", "Ideal", "Menengah", "Konsolidasi / Transisi"]): return 'color: #eab308; font-weight: 600;'
+        elif any(x in val for x in ["Squeeze", "RENCANA AKUISISI", "Sedang", "Mid Cap", "Seimbang", "Fair Value", "Area Tengah", "Doji", "Ritel Aktif", "Anomali", "Accumulation", "Sideways", "Ideal", "Menengah", "Konsolidasi / Transisi", "Neutral"]): return 'color: #eab308; font-weight: 600;'
         elif "⭐" in val: return 'color: #22c55e;' if len(val) >= 6 else 'color: #ef4444;'
     return ''
 
@@ -534,7 +535,7 @@ def render_strategy_table(df_subset, file_name):
         if "Total Score" in df_subset.columns: df_subset["Total Score"] = df_subset["Total Score"].apply(format_skor)
 
         kolom_utama = ["Ticker", "Harga (Rp)", "Change (%)", "Volume", "Total Score", "Auto Trading Plan"]
-        kolom_tambahan = ["Trend MA (5,20,50)", "RVOL (Anomali Vol)", "Tekanan Bandar", "Status Bandar", "Kekuatan A/D", "Sinyal Cuci Barang", "Status BB", "MA Signal"]
+        kolom_tambahan = ["Broksum", "Trend MA (5,20,50)", "RVOL (Anomali Vol)", "Tekanan Bandar", "Status Bandar", "Kekuatan A/D", "Sinyal Cuci Barang", "Status BB", "MA Signal"]
         kolom_tampil = [c for c in kolom_utama + kolom_tambahan if c in df_subset.columns]
 
         styler = df_subset[kolom_tampil].style.format({"Harga (Rp)": format_angka, "Volume": format_angka, "Change (%)": format_pct})
@@ -592,11 +593,14 @@ if not df_hasil.empty:
                     idx_opsi = info["options"].index(val_sekarang) if val_sekarang in info["options"] else 0
                     filter_terpilih[db_key] = st.selectbox(info["label"], info["options"], index=idx_opsi, key=f"main_{db_key}", on_change=manual_override)
 
-        col_search, _ = st.columns([1, 2])
+        col_search, col_broker, _ = st.columns([1, 1, 1])
         with col_search: search_ticker = st.text_input("🔍 Cari Kode Saham", "", placeholder="Contoh: BBCA")
+        with col_broker: search_broker = st.text_input("🕵️ Cari Kode Broker (Broksum)", "", placeholder="Contoh: MG / YP")
 
         df_filtered = df_hasil.copy()
         if search_ticker: df_filtered = df_filtered[df_filtered["Ticker"].str.contains(search_ticker.upper(), na=False)]
+        if search_broker and "Broksum" in df_filtered.columns: 
+            df_filtered = df_filtered[df_filtered["Broksum"].str.contains(search_broker.upper(), na=False)]
         
         for db_key, nilai in filter_terpilih.items():
             if nilai != "Semua":
@@ -621,11 +625,11 @@ if not df_hasil.empty:
             df_tampil = df_filtered.iloc[idx_awal : idx_awal + per_hal].copy()
             if "Total Score" in df_tampil.columns: df_tampil["Total Score"] = df_tampil["Total Score"].apply(format_skor)
             
-            kolom_ringkasan = ["Ticker", "Harga (Rp)", "Change (%)", "Rekomendasi", "Status Open", "Posisi VWAP", "Total Score", "Volume", "Auto Trading Plan"]
-            kolom_bandar = ["Ticker", "Harga (Rp)", "Change (%)", "Fase Siklus Bandar", "Kekuatan A/D", "Status Bandar", "RVOL (Anomali Vol)", "Karakter Gorengan", "Tekanan Bandar", "OBV Trend", "Kondisi Supply", "Prediksi Machine Learning"]
+            kolom_ringkasan = ["Ticker", "Harga (Rp)", "Change (%)", "Broksum", "Rekomendasi", "Status Open", "Posisi VWAP", "Total Score", "Volume", "Auto Trading Plan"]
+            kolom_bandar = ["Ticker", "Harga (Rp)", "Change (%)", "Broksum", "Fase Siklus Bandar", "Kekuatan A/D", "Status Bandar", "RVOL (Anomali Vol)", "Karakter Gorengan", "Tekanan Bandar", "OBV Trend", "Kondisi Supply", "Prediksi Machine Learning"]
             kolom_teknikal = ["Ticker", "Harga (Rp)", "Change (%)", "Auto Trading Plan", "Risk/Reward Ratio", "Sinyal Cuci Barang", "Posisi Entry", "Pola Candle", "Trend MA (5,20,50)", "MA Signal", "Status BB", "RSI (14D)", "MACD", "Status Stochastic"]
             kolom_fundamental = ["Ticker", "Harga (Rp)", "Kategori", "Valuasi", "PER (x)", "PBV (x)", "Kelas Transaksi", "Likuiditas", "Status Sentimen"]
-            kolom_semua = ["Ticker", "Status Open", "Risk/Reward Ratio", "Auto Trading Plan", "Streak Harian", "Sinyal Cuci Barang", "Kategori", "Kelas Transaksi", "Valuasi", "Harga (Rp)", "PER (x)", "PBV (x)", "Harga MA20", "Posisi VWAP", "Support", "Resistance", "Posisi Entry", "Pola Candle", "Change (%)", "Volume", "RVOL (Anomali Vol)", "Vol Breakout", "Status Gap", "Fase Siklus Bandar", "Karakter Gorengan", "Tekanan Bandar", "Kekuatan A/D", "Status Bandar", "OBV Trend", "RSI (14D)", "Momentum", "Trend MA (5,20,50)", "MA Signal", "MA Cross", "MACD", "Status Stochastic", "Status BB", "Risiko", "Likuiditas", "Status Sentimen", "Prediksi Machine Learning", "Kondisi Supply", "Total Score", "Rekomendasi"]
+            kolom_semua = ["Ticker", "Broksum", "Status Open", "Risk/Reward Ratio", "Auto Trading Plan", "Streak Harian", "Sinyal Cuci Barang", "Kategori", "Kelas Transaksi", "Valuasi", "Harga (Rp)", "PER (x)", "PBV (x)", "Harga MA20", "Posisi VWAP", "Support", "Resistance", "Posisi Entry", "Pola Candle", "Change (%)", "Volume", "RVOL (Anomali Vol)", "Vol Breakout", "Status Gap", "Fase Siklus Bandar", "Karakter Gorengan", "Tekanan Bandar", "Kekuatan A/D", "Status Bandar", "OBV Trend", "RSI (14D)", "Momentum", "Trend MA (5,20,50)", "MA Signal", "MA Cross", "MACD", "Status Stochastic", "Status BB", "Risiko", "Likuiditas", "Status Sentimen", "Prediksi Machine Learning", "Kondisi Supply", "Total Score", "Rekomendasi"]
             
             if "Ringkasan" in mode_tampilan: kolom_pilih = kolom_ringkasan
             elif "Bandarmologi" in mode_tampilan: kolom_pilih = kolom_bandar
@@ -800,6 +804,7 @@ if not df_hasil.empty:
                                     data_kompilasi[ticker] = {
                                         'harga': data_saham.get('Harga (Rp)', 0),
                                         'change': data_saham.get('Change (%)', 0), 
+                                        'broksum': data_saham.get('Broksum', 'Tidak Ada'),
                                         'status': data_saham.get('Fase Siklus Bandar', 'Normal'),
                                         'skor': data_saham.get('Total Score', 0),
                                         'histori': teks_ringkasan if teks_ringkasan else "Arsip belum tersedia."
@@ -829,9 +834,13 @@ if not df_hasil.empty:
                             with st.spinner(f"Memutar mesin waktu ke H-3 untuk {len(saham_valid)} saham. Mencari DNA Bandar..."):
                                 data_kompilasi = {}
                                 for ticker in saham_valid:
+                                    data_saham = df_hasil[df_hasil['Ticker'] == ticker].iloc[0]
                                     teks_histori = get_forensic_data(ticker)
                                     if teks_histori and "belum tersedia" not in teks_histori:
-                                        data_kompilasi[ticker] = {'histori': teks_histori}
+                                        data_kompilasi[ticker] = {
+                                            'broksum': data_saham.get('Broksum', 'Tidak Ada'),
+                                            'histori': teks_histori
+                                        }
                                 
                                 if not data_kompilasi:
                                     st.error("❌ Data arsip masa lalu (H-3) tidak ditemukan untuk saham-saham ini.")
@@ -844,7 +853,7 @@ if not df_hasil.empty:
                 # --- LOGIKA PEMBURU ARA ---
                 elif "Pemburu ARA" in pilihan_ai:
                     st.subheader("🎯 Pemburu ARA (Spesialis DNA Ledakan)")
-                    st.markdown("Paste daftar saham Anda di sini. AI akan menyeleksi **HANYA** saham yang memenuhi kriteria **DNA ARA** (RVOL >150%, OBV Naik, BB Squeeze/Breakout, Akumulasi A/D Kuat).")
+                    st.markdown("Paste daftar saham Anda di sini. AI akan menyeleksi **HANYA** saham yang memenuhi kriteria **DNA ARA** (RVOL >150%, OBV Naik, BB Squeeze/Breakout, Akumulasi A/D Kuat, Broksum Akum).")
                     input_v8 = st.text_area("📋 Paste Daftar Saham (Pisahkan dengan Enter/Spasi):", placeholder="Contoh:\nVISI\nPANI\nDMAS", height=200, key="input_pemburu_ara")
                     
                     if st.button(f"🚀 Mulai Deteksi DNA"):
@@ -875,6 +884,7 @@ if not df_hasil.empty:
                                     data_kompilasi[ticker] = {
                                         'harga': data_saham.get('Harga (Rp)', 0),
                                         'change': data_saham.get('Change (%)', 0),
+                                        'broksum': data_saham.get('Broksum', 'Tidak Ada'),
                                         'rvol': data_saham.get('RVOL (Anomali Vol)', 'Normal'),
                                         'obv': data_saham.get('OBV Trend', 'Netral'),
                                         'bb': data_saham.get('Status BB', 'Normal'),
