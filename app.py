@@ -679,16 +679,12 @@ if not df_hasil.empty:
 
     with tab5:
         st.markdown("## 🦅 Radar BSJP & Laboratorium Forensik AI")
-        st.markdown("<div class='bandar-box-green'><b>💡 INFO:</b> Tab V6 (Eksekusi BSJP Besok), Tab V7 (Bongkar Rahasia Saham ARA Hari Ini).</div>", unsafe_allow_html=True)
+        st.markdown("<div class='bandar-box-green'><b>💡 INFO:</b> Gunakan kotak pilihan (Dropdown) di bawah ini untuk beralih antar strategi atau mode AI agar tampilan lebih rapi.</div>", unsafe_allow_html=True)
         
         if 'Tekanan Bandar' not in df_hasil.columns:
             st.warning("⏳ **Fitur Radar belum menerima data terbaru.** Harap jalankan 'update_data.py'.")
         else:
-            t_v1, t_v2, t_v3, t_v4, t_v5, t_v6, t_v7, t_v8 = st.tabs([
-                "🤫 V1: Senyap", "🌊 V2: Big Cap", "🚀 V3: Spekulasi", "🎯 V4: Squeeze",
-                "👑 V5: Gabungan (V1-V4)", "🤖 V6: AI Bandar (BSJP)", "🔎 V7: Forensik Bandar", "🎯 V8: Pemburu ARA"
-            ])
-
+            # Kalkulasi Filter V1 - V4
             cond_v1 = ((df_hasil['Kekuatan A/D'] == 'Akumulasi Pro (Smart Money)') & (df_hasil['Status BB'] == 'Squeeze') & (df_hasil['RVOL (Anomali Vol)'].isin(['Ledakan Ekstrem (> 300%)', 'Anomali Tinggi (150-300%)'])) & (df_hasil['Change (%)'] < 5.0) & (df_hasil['OBV Trend'] == 'Akumulasi (Naik)') & (df_hasil['Posisi VWAP'] != 'Di Bawah VWAP (Lemah)'))
             df_v1 = df_hasil[cond_v1].copy()
 
@@ -703,140 +699,169 @@ if not df_hasil.empty:
 
             df_v5 = pd.concat([df_v1, df_v2, df_v3, df_v4]).drop_duplicates(subset=['Ticker']).copy()
 
-            with t_v1: render_strategy_table(df_v1, "BSJP_V1_Senyap")
-            with t_v2: render_strategy_table(df_v2, "BSJP_V2_BigCap")
-            with t_v3: render_strategy_table(df_v3, "BSJP_V3_Spekulasi")
-            with t_v4: render_strategy_table(df_v4, "BSJP_V4_Squeeze")
-            with t_v5: render_strategy_table(df_v5, "BSJP_V5_Gabungan")
+            # MEMBAGI MENJADI 2 TAB UTAMA YANG RAPI
+            tab_screener, tab_ai = st.tabs(["🎯 Screener Spesial (V1 - V5)", "🧠 Asisten AI (V6 - V8)"])
             
-            # --- V6: AI BANDAR (EKSEKUSI BSJP) ---
-            with t_v6:
-                st.subheader("🤖 V6: AI Bandar (Persiapan BSJP Besok)")
-                st.markdown("Paste saham yang MASIH MERAH / SIDEWAYS. AI akan mencari siapa yang siap terbang besok.")
+            # ===============================================
+            # AREA SCREENER OTOMATIS
+            # ===============================================
+            with tab_screener:
+                pilihan_v = st.selectbox(
+                    "Pilih Versi Screener:",
+                    [
+                        "🤫 V1: Senyap (Akumulasi Tersembunyi)", 
+                        "🌊 V2: Big Cap (Bluechip Squeeze)", 
+                        "🚀 V3: Spekulasi (Lapis 3 High Risk)", 
+                        "🎯 V4: Squeeze (Konsolidasi Breakout)", 
+                        "👑 V5: Gabungan (Koleksi V1-V4)"
+                    ]
+                )
                 
-                input_saham_massal = st.text_area("📋 Paste Daftar Saham (Pisahkan dengan Enter/Spasi):", placeholder="Contoh:\nDMAS\nINDF", height=200, key="input_v6")
-                
-                if st.button(f"🔮 Mulai Eksekusi V6"):
-                    import re
-                    saham_bersih = [s.strip().upper() for s in re.split(r'[,\s\n]+', input_saham_massal) if s.strip()]
-                    saham_unik = list(dict.fromkeys(saham_bersih))
-                    saham_valid = [s for s in saham_unik if s in df_hasil['Ticker'].values]
-                    
-                    df_valid = df_hasil[df_hasil['Ticker'].isin(saham_valid)].copy()
-                    if 'Change (%)' in df_valid.columns:
-                        df_valid = df_valid[df_valid['Change (%)'] <= 5.0]
-                        saham_valid = df_valid['Ticker'].tolist()
+                st.markdown("---")
+                if "V1" in pilihan_v:
+                    render_strategy_table(df_v1, "BSJP_V1_Senyap")
+                elif "V2" in pilihan_v:
+                    render_strategy_table(df_v2, "BSJP_V2_BigCap")
+                elif "V3" in pilihan_v:
+                    render_strategy_table(df_v3, "BSJP_V3_Spekulasi")
+                elif "V4" in pilihan_v:
+                    render_strategy_table(df_v4, "BSJP_V4_Squeeze")
+                elif "V5" in pilihan_v:
+                    render_strategy_table(df_v5, "BSJP_V5_Gabungan")
 
-                    if not saham_valid:
-                        st.error("❌ Saham yang Anda masukkan sudah terbang terlalu tinggi (>5%). Gunakan V6 untuk mencari saham yang masih di bawah!")
-                    else:
-                        if len(saham_valid) > 20:
-                            st.info("🤖 Menyaring 20 saham terbaik untuk mencegah limit AI...")
-                            df_valid = df_valid.sort_values(by=['Total Score', 'Volume'], ascending=[False, False])
-                            saham_valid = df_valid['Ticker'].head(20).tolist()
+            # ===============================================
+            # AREA KECERDASAN BUATAN (AI)
+            # ===============================================
+            with tab_ai:
+                pilihan_ai = st.selectbox(
+                    "Pilih Mode Analisis AI:",
+                    [
+                        "🤖 V6: AI Bandar (Persiapan BSJP)", 
+                        "🔎 V7: Forensik Bandar (Bongkar DNA ARA)", 
+                        "🎯 V8: Pemburu ARA (Spesialis DNA Ledakan)"
+                    ]
+                )
+                st.markdown("---")
+                
+                # --- LOGIKA V6 ---
+                if "V6" in pilihan_ai:
+                    st.subheader("🤖 V6: AI Bandar (Persiapan BSJP Besok)")
+                    st.markdown("Paste saham yang MASIH MERAH / SIDEWAYS. AI akan mencari siapa yang siap terbang besok.")
+                    input_saham_massal = st.text_area("📋 Paste Daftar Saham (Pisahkan dengan Enter/Spasi):", placeholder="Contoh:\nDMAS\nINDF", height=200, key="input_v6")
+                    
+                    if st.button(f"🔮 Mulai Eksekusi V6"):
+                        import re
+                        saham_bersih = [s.strip().upper() for s in re.split(r'[,\s\n]+', input_saham_massal) if s.strip()]
+                        saham_unik = list(dict.fromkeys(saham_bersih))
+                        saham_valid = [s for s in saham_unik if s in df_hasil['Ticker'].values]
                         
-                        with st.spinner(f"Menganalisa {len(saham_valid)} saham untuk BSJP besok..."):
-                            data_kompilasi = {}
-                            for ticker in saham_valid:
-                                data_saham = df_hasil[df_hasil['Ticker'] == ticker].iloc[0]
-                                teks_ringkasan = get_historical_summary(ticker)
-                                data_kompilasi[ticker] = {
-                                    'harga': data_saham.get('Harga (Rp)', 0),
-                                    'change': data_saham.get('Change (%)', 0), 
-                                    'status': data_saham.get('Fase Siklus Bandar', 'Normal'),
-                                    'skor': data_saham.get('Total Score', 0),
-                                    'histori': teks_ringkasan if teks_ringkasan else "Arsip belum tersedia."
-                                }
-                            hasil_ai = analisa_bandar_ai_multisaham(data_kompilasi, 'gemma-4-26b-a4b-it')
-                            st.info(hasil_ai)
+                        df_valid = df_hasil[df_hasil['Ticker'].isin(saham_valid)].copy()
+                        if 'Change (%)' in df_valid.columns:
+                            df_valid = df_valid[df_valid['Change (%)'] <= 5.0]
+                            saham_valid = df_valid['Ticker'].tolist()
 
-            # --- V7: AI FORENSIK (REVERSE ENGINEERING ARA) ---
-            with t_v7:
-                st.subheader("🔎 V7: Laboratorium Forensik Bandar (Bongkar DNA Top Gainer)")
-                st.markdown("Paste saham-saham yang **HARI INI ARA ATAU NAIK >10%**. AI akan memutar mundur waktu ke H-3, membongkar polanya, dan menciptakan racikan *Screener* untuk Anda!")
-                
-                input_forensik = st.text_area("📋 Paste Daftar Saham ARA/Top Gainer Hari Ini:", placeholder="Contoh:\nVISI\nBBHI\nPANI", height=200, key="input_v7")
-                
-                if st.button(f"🔬 Mulai Proses Forensik V7"):
-                    import re
-                    saham_bersih = [s.strip().upper() for s in re.split(r'[,\s\n]+', input_forensik) if s.strip()]
-                    saham_unik = list(dict.fromkeys(saham_bersih))
-                    saham_valid = [s for s in saham_unik if s in df_hasil['Ticker'].values]
-                    
-                    if not saham_valid:
-                        st.error("❌ Kode saham tidak ditemukan di database hari ini.")
-                    else:
-                        if len(saham_valid) > 15:
-                            st.warning("⚠️ Untuk analisa mendalam H-3, kami membatasi max 15 saham agar AI lebih fokus.")
-                            saham_valid = saham_valid[:15]
+                        if not saham_valid:
+                            st.error("❌ Saham yang Anda masukkan sudah terbang terlalu tinggi (>5%). Gunakan V6 untuk mencari saham yang masih di bawah!")
+                        else:
+                            if len(saham_valid) > 20:
+                                st.info("🤖 Menyaring 20 saham terbaik untuk mencegah limit AI...")
+                                df_valid = df_valid.sort_values(by=['Total Score', 'Volume'], ascending=[False, False])
+                                saham_valid = df_valid['Ticker'].head(20).tolist()
                             
-                        with st.spinner(f"Memutar mesin waktu ke H-3 untuk {len(saham_valid)} saham. Mencari DNA Bandar..."):
-                            data_kompilasi = {}
-                            for ticker in saham_valid:
-                                teks_histori = get_forensic_data(ticker)
-                                if teks_histori and "belum tersedia" not in teks_histori:
-                                    data_kompilasi[ticker] = {'histori': teks_histori}
-                            
-                            if not data_kompilasi:
-                                st.error("❌ Data arsip masa lalu (H-3) tidak ditemukan untuk saham-saham ini.")
-                            else:
-                                daftar_kategori_web = ", ".join(MASTER_FILTERS.keys())
-                                hasil_ai = analisa_forensik_ai(data_kompilasi, daftar_kategori_web)
-                                st.success("✅ DNA Berhasil Dibongkar!")
+                            with st.spinner(f"Menganalisa {len(saham_valid)} saham untuk BSJP besok..."):
+                                data_kompilasi = {}
+                                for ticker in saham_valid:
+                                    data_saham = df_hasil[df_hasil['Ticker'] == ticker].iloc[0]
+                                    teks_ringkasan = get_historical_summary(ticker)
+                                    data_kompilasi[ticker] = {
+                                        'harga': data_saham.get('Harga (Rp)', 0),
+                                        'change': data_saham.get('Change (%)', 0), 
+                                        'status': data_saham.get('Fase Siklus Bandar', 'Normal'),
+                                        'skor': data_saham.get('Total Score', 0),
+                                        'histori': teks_ringkasan if teks_ringkasan else "Arsip belum tersedia."
+                                    }
+                                hasil_ai = analisa_bandar_ai_multisaham(data_kompilasi, 'gemma-4-26b-a4b-it')
                                 st.info(hasil_ai)
 
-            # --- V8: AI PEMBURU ARA (EKSEKUTOR DNA KHUSUS) ---
-            with t_v8:
-                st.subheader("🎯 V8: AI Pemburu ARA (Spesialis DNA Ledakan)")
-                st.markdown("Paste daftar saham Anda di sini. AI akan menyeleksi **HANYA** saham yang memenuhi kriteria **DNA ARA** hasil temuan Lab Forensik (RVOL >150%, OBV Naik, BB Squeeze/Breakout, Akumulasi A/D Kuat).")
-                
-                input_v8 = st.text_area("📋 Paste Daftar Saham (Pisahkan dengan Enter/Spasi):", placeholder="Contoh:\nVISI\nPANI\nDMAS", height=200, key="input_v8")
-                
-                if st.button(f"🚀 Mulai Deteksi DNA (V8)"):
-                    import re
-                    saham_bersih = [s.strip().upper() for s in re.split(r'[,\s\n]+', input_v8) if s.strip()]
-                    saham_unik = list(dict.fromkeys(saham_bersih))
-                    saham_valid = [s for s in saham_unik if s in df_hasil['Ticker'].values]
+                # --- LOGIKA V7 ---
+                elif "V7" in pilihan_ai:
+                    st.subheader("🔎 V7: Laboratorium Forensik Bandar (Bongkar DNA Top Gainer)")
+                    st.markdown("Paste saham-saham yang **HARI INI ARA ATAU NAIK >10%**. AI akan memutar mundur waktu ke H-3, membongkar polanya, dan menciptakan racikan *Screener* untuk Anda!")
+                    input_forensik = st.text_area("📋 Paste Daftar Saham ARA/Top Gainer Hari Ini:", placeholder="Contoh:\nVISI\nBBHI\nPANI", height=200, key="input_v7")
                     
-                    # ==========================================
-                    # FITUR BARU: ANTI-PUCUK V8 (HANYA SAHAM DATAR/MERAH)
-                    # ==========================================
-                    df_valid = df_hasil[df_hasil['Ticker'].isin(saham_valid)].copy()
-                    
-                    if 'Change (%)' in df_valid.columns:
-                        # HANYA MELOLOSKAN SAHAM YANG NAIK MAKSIMAL 5% (Bisa Anda ganti ke 3.0 jika ingin lebih ketat)
-                        df_valid = df_valid[df_valid['Change (%)'] <= 5.0]
-                        saham_valid = df_valid['Ticker'].tolist()
-
-                    if not saham_valid:
-                        st.error("❌ Semua saham yang Anda masukkan sudah terbang terlalu tinggi (>5%). Masukkan saham yang MASIH DATAR atau MERAH!")
-                    else:
-                        if len(saham_valid) > 15:
-                            st.info("🤖 Menyaring 15 saham 'Sideways' terbaik untuk mencegah limit AI...")
-                            df_valid = df_valid.sort_values(by=['Total Score', 'Volume'], ascending=[False, False])
-                            saham_valid = df_valid['Ticker'].head(15).tolist()
+                    if st.button(f"🔬 Mulai Proses Forensik V7"):
+                        import re
+                        saham_bersih = [s.strip().upper() for s in re.split(r'[,\s\n]+', input_forensik) if s.strip()]
+                        saham_unik = list(dict.fromkeys(saham_bersih))
+                        saham_valid = [s for s in saham_unik if s in df_hasil['Ticker'].values]
                         
-                        with st.spinner(f"Membedah DNA {len(saham_valid)} saham yang masih datar. Mencari kandidat ARA..."):
-                            data_kompilasi = {}
-                            for ticker in saham_valid:
-                                data_saham = df_hasil[df_hasil['Ticker'] == ticker].iloc[0]
-                                teks_ringkasan = get_historical_summary(ticker)
+                        if not saham_valid:
+                            st.error("❌ Kode saham tidak ditemukan di database hari ini.")
+                        else:
+                            if len(saham_valid) > 15:
+                                st.warning("⚠️ Untuk analisa mendalam H-3, kami membatasi max 15 saham agar AI lebih fokus.")
+                                saham_valid = saham_valid[:15]
                                 
-                                # Mengambil data spesifik yang diminta oleh strategi DNA
-                                data_kompilasi[ticker] = {
-                                    'harga': data_saham.get('Harga (Rp)', 0),
-                                    'change': data_saham.get('Change (%)', 0),
-                                    'rvol': data_saham.get('RVOL (Anomali Vol)', 'Normal'),
-                                    'obv': data_saham.get('OBV Trend', 'Netral'),
-                                    'bb': data_saham.get('Status BB', 'Normal'),
-                                    'siklus': data_saham.get('Fase Siklus Bandar', 'Normal'),
-                                    'ad': data_saham.get('Kekuatan A/D', 'Netral'),
-                                    'rsi': data_saham.get('RSI (14D)', 50),
-                                    'histori': teks_ringkasan if teks_ringkasan else "Arsip belum tersedia."
-                                }
+                            with st.spinner(f"Memutar mesin waktu ke H-3 untuk {len(saham_valid)} saham. Mencari DNA Bandar..."):
+                                data_kompilasi = {}
+                                for ticker in saham_valid:
+                                    teks_histori = get_forensic_data(ticker)
+                                    if teks_histori and "belum tersedia" not in teks_histori:
+                                        data_kompilasi[ticker] = {'histori': teks_histori}
                                 
-                            hasil_ai_v8 = analisa_pemburu_ara_ai(data_kompilasi)
-                            st.success("✅ Analisis DNA Selesai!")
-                            st.info(hasil_ai_v8)                    
+                                if not data_kompilasi:
+                                    st.error("❌ Data arsip masa lalu (H-3) tidak ditemukan untuk saham-saham ini.")
+                                else:
+                                    daftar_kategori_web = ", ".join(MASTER_FILTERS.keys())
+                                    hasil_ai = analisa_forensik_ai(data_kompilasi, daftar_kategori_web)
+                                    st.success("✅ DNA Berhasil Dibongkar!")
+                                    st.info(hasil_ai)
+
+                # --- LOGIKA V8 ---
+                elif "V8" in pilihan_ai:
+                    st.subheader("🎯 V8: AI Pemburu ARA (Spesialis DNA Ledakan)")
+                    st.markdown("Paste daftar saham Anda di sini. AI akan menyeleksi **HANYA** saham yang memenuhi kriteria **DNA ARA** (RVOL >150%, OBV Naik, BB Squeeze/Breakout, Akumulasi A/D Kuat).")
+                    input_v8 = st.text_area("📋 Paste Daftar Saham (Pisahkan dengan Enter/Spasi):", placeholder="Contoh:\nVISI\nPANI\nDMAS", height=200, key="input_v8")
+                    
+                    if st.button(f"🚀 Mulai Deteksi DNA (V8)"):
+                        import re
+                        saham_bersih = [s.strip().upper() for s in re.split(r'[,\s\n]+', input_v8) if s.strip()]
+                        saham_unik = list(dict.fromkeys(saham_bersih))
+                        saham_valid = [s for s in saham_unik if s in df_hasil['Ticker'].values]
+                        
+                        df_valid = df_hasil[df_hasil['Ticker'].isin(saham_valid)].copy()
+                        if 'Change (%)' in df_valid.columns:
+                            df_valid = df_valid[df_valid['Change (%)'] <= 5.0]
+                            saham_valid = df_valid['Ticker'].tolist()
+
+                        if not saham_valid:
+                            st.error("❌ Semua saham yang dimasukkan sudah terbang >5%. Masukkan saham yang MASIH DATAR atau MERAH!")
+                        else:
+                            if len(saham_valid) > 15:
+                                st.info("🤖 Menyaring 15 saham 'Sideways' terbaik untuk mencegah limit AI...")
+                                df_valid = df_valid.sort_values(by=['Total Score', 'Volume'], ascending=[False, False])
+                                saham_valid = df_valid['Ticker'].head(15).tolist()
+                            
+                            with st.spinner(f"Membedah DNA {len(saham_valid)} saham yang masih datar. Mencari kandidat ARA..."):
+                                data_kompilasi = {}
+                                for ticker in saham_valid:
+                                    data_saham = df_hasil[df_hasil['Ticker'] == ticker].iloc[0]
+                                    teks_ringkasan = get_historical_summary(ticker)
+                                    
+                                    data_kompilasi[ticker] = {
+                                        'harga': data_saham.get('Harga (Rp)', 0),
+                                        'change': data_saham.get('Change (%)', 0),
+                                        'rvol': data_saham.get('RVOL (Anomali Vol)', 'Normal'),
+                                        'obv': data_saham.get('OBV Trend', 'Netral'),
+                                        'bb': data_saham.get('Status BB', 'Normal'),
+                                        'siklus': data_saham.get('Fase Siklus Bandar', 'Normal'),
+                                        'ad': data_saham.get('Kekuatan A/D', 'Netral'),
+                                        'rsi': data_saham.get('RSI (14D)', 50),
+                                        'histori': teks_ringkasan if teks_ringkasan else "Arsip belum tersedia."
+                                    }
+                                    
+                                hasil_ai_v8 = analisa_pemburu_ara_ai(data_kompilasi)
+                                st.success("✅ Analisis DNA Selesai!")
+                                st.info(hasil_ai_v8)                    
 else:
     st.error("Silakan jalankan `update_data.py` terlebih dahulu di terminal untuk memuat data!")
