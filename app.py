@@ -684,20 +684,23 @@ if not df_hasil.empty:
         if 'Tekanan Bandar' not in df_hasil.columns:
             st.warning("⏳ **Fitur Radar belum menerima data terbaru.** Harap jalankan 'update_data.py'.")
         else:
-            # Kalkulasi Filter V1 - V4
-            cond_v1 = ((df_hasil['Kekuatan A/D'] == 'Akumulasi Pro (Smart Money)') & (df_hasil['Status BB'] == 'Squeeze') & (df_hasil['RVOL (Anomali Vol)'].isin(['Ledakan Ekstrem (> 300%)', 'Anomali Tinggi (150-300%)'])) & (df_hasil['Change (%)'] < 5.0) & (df_hasil['OBV Trend'] == 'Akumulasi (Naik)') & (df_hasil['Posisi VWAP'] != 'Di Bawah VWAP (Lemah)'))
-            df_v1 = df_hasil[cond_v1].copy()
+            # ===============================================
+            # KALKULASI RUMUS V1 - V5 (STRATEGI REVERSAL SMALL CAP)
+            # ===============================================
+            cond_v1 = ((df_hasil['Kategori'] == 'Small Cap (Lapis 3)') & (df_hasil['Vol Breakout'] == 'Tembus MA20') & (df_hasil['Status Stochastic'] == 'Oversold (Jenuh Jual - Peluang)'))
+            df_v1 = df_hasil[cond_v1].copy() if not df_hasil.empty else pd.DataFrame()
 
-            cond_v2 = ((df_hasil['Kategori'].isin(['Big Cap (Lapis 1)', 'Mid Cap (Lapis 2)'])) & ((df_hasil['Status BB'] == 'Squeeze') | (df_hasil['Fase Siklus Bandar'] == 'Sideways')) & (df_hasil['Trend MA (5,20,50)'].isin(['Perfect Uptrend (5>20>50)', 'Awal Reversal (5>20)'])) & (df_hasil['OBV Trend'] == 'Akumulasi (Naik)') & (df_hasil['Total Score'] >= 6))
-            df_v2 = df_hasil[cond_v2].copy() 
+            cond_v2 = ((df_hasil['Kategori'] == 'Small Cap (Lapis 3)') & (df_hasil['Vol Breakout'] == 'Tembus MA20') & (df_hasil['Fase Siklus Bandar'] == 'Accumulation (Kumpul Barang)') & (df_hasil['RVOL (Anomali Vol)'] == 'Normal (50-150%)') & (df_hasil['Tekanan Bandar'] == 'Seimbang / Adu Mekanik'))
+            df_v2 = df_hasil[cond_v2].copy() if not df_hasil.empty else pd.DataFrame()
 
-            cond_v3 = ((df_hasil['Kategori'] == 'Small Cap (Lapis 3)') & (df_hasil['Tekanan Bandar'] == 'Dominan Beli (Hajar Kanan)') & (df_hasil['Vol Breakout'] == 'Tembus MA20') & (df_hasil['Kelas Transaksi'].isin(['Sultan (> 50M/hari)', 'Ritel Aktif (5M - 50M)'])) & ((df_hasil['Status Bandar'] == 'Akumulasi Kuat') | (df_hasil['OBV Trend'] == 'Akumulasi (Naik)')))
-            df_v3 = df_hasil[cond_v3].copy()
+            cond_v3 = ((df_hasil['Kategori'] == 'Small Cap (Lapis 3)') & (df_hasil['Vol Breakout'] == 'Tembus MA20') & (df_hasil['Posisi Entry'] == 'Dekat Support (Low Risk)') & (df_hasil['Status Stochastic'] == 'Oversold (Jenuh Jual - Peluang)'))
+            df_v3 = df_hasil[cond_v3].copy() if not df_hasil.empty else pd.DataFrame()
 
-            cond_v4 = (((df_hasil['Status BB'] == 'Squeeze') | (df_hasil['Fase Siklus Bandar'] == 'Sideways')) & (df_hasil['Trend MA (5,20,50)'].isin(['Perfect Uptrend (5>20>50)', 'Awal Reversal (5>20)'])) & (df_hasil['Kelas Transaksi'] != 'Gorengan Sepi (< 5M)'))
-            df_v4 = df_hasil[cond_v4].copy() if 'Trend MA (5,20,50)' in df_hasil.columns else pd.DataFrame()
+            cond_v4 = ((df_hasil['Kategori'] == 'Small Cap (Lapis 3)') & (df_hasil['Vol Breakout'] == 'Tembus MA20') & (df_hasil['MA Signal'] == 'Downtrend') & (df_hasil['Momentum'] == 'Negatif') & (df_hasil['MA Cross'] == 'Bullish'))
+            df_v4 = df_hasil[cond_v4].copy() if not df_hasil.empty else pd.DataFrame()
 
-            df_v5 = pd.concat([df_v1, df_v2, df_v3, df_v4]).drop_duplicates(subset=['Ticker']).copy()
+            cond_v5 = ((df_hasil['Kategori'] == 'Small Cap (Lapis 3)') & (df_hasil['Vol Breakout'] == 'Tembus MA20') & (df_hasil['Fase Siklus Bandar'] == 'Accumulation (Kumpul Barang)') & (df_hasil['RSI (14D)'] <= 50))
+            df_v5 = df_hasil[cond_v5].copy() if not df_hasil.empty and 'RSI (14D)' in df_hasil.columns else pd.DataFrame()
 
             # MEMBAGI MENJADI 2 TAB UTAMA YANG RAPI
             tab_screener, tab_ai = st.tabs(["🎯 Screener Spesial (V1 - V5)", "🧠 Asisten AI (V6 - V8)"])
@@ -709,11 +712,11 @@ if not df_hasil.empty:
                 pilihan_v = st.selectbox(
                     "Pilih Versi Screener:",
                     [
-                        "🤫 V1: Senyap (Akumulasi Tersembunyi)", 
-                        "🌊 V2: Big Cap (Bluechip Squeeze)", 
-                        "🚀 V3: Spekulasi (Lapis 3 High Risk)", 
-                        "🎯 V4: Squeeze (Konsolidasi Breakout)", 
-                        "👑 V5: Gabungan (Koleksi V1-V4)"
+                        "V1: Rumus 1 (Small Cap + Tembus MA20 + Oversold)", 
+                        "V2: Rumus 2 (Small Cap + Tembus MA20 + Akumulasi Vol Normal)", 
+                        "V3: Rumus 3 (Small Cap + Tembus MA20 + Support Oversold)", 
+                        "V4: Rumus 4 (Small Cap + Tembus MA20 + Bottom Fishing Bullish)", 
+                        "V5: Rumus 5 (Small Cap + Tembus MA20 + Akumulasi RSI Bearish)"
                     ]
                 )
                 
