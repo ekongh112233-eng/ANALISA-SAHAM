@@ -719,6 +719,9 @@ if not df_hasil.empty:
             cond_v8 = ((df_hasil['Kategori'] == 'Small Cap (Lapis 3)') & (df_hasil.get('Kondisi Supply', '') == 'Supply Kering (Siap Pump) 🏜️') & (df_hasil['OBV Trend'] == 'Akumulasi (Naik)') & (df_hasil['Pola Candle'] == 'Doji (Ragu-ragu)') & (df_hasil.get('Status Sentimen', '') == 'Sentimen Positif 📰'))
             df_v8 = df_hasil[cond_v8].copy() if not df_hasil.empty else pd.DataFrame()
 
+            cond_v9 = ((df_hasil['Kategori'] == 'Small Cap (Lapis 3)') & (df_hasil['Tekanan Bandar'] == 'Dominan Beli (Hajar Kanan)') & (df_hasil['Kekuatan A/D'] == 'Akumulasi Pro (Smart Money)') & (df_hasil.get('Kondisi Supply', '') == 'Supply Kering (Siap Pump) 🏜️'))
+            df_v9 = df_hasil[cond_v9].copy() if not df_hasil.empty else pd.DataFrame()
+
             # MEMBAGI MENJADI 2 TAB UTAMA YANG RAPI
             tab_screener, tab_ai = st.tabs(["🎯 Screener Spesial", "🧠 Asisten AI"])
             
@@ -736,7 +739,8 @@ if not df_hasil.empty:
                         "Rumus 5 (Small Cap + Tembus MA20 + Akumulasi RSI Bearish)",
                         "Rumus 6 (Small Cap + Hajar Kanan + Supply Kering + Oversold)",
                         "Rumus 7 (Small Cap + Hajar Kanan + Supply Kering + Golden Cross)",
-                        "Rumus 8 (Small Cap + Supply Kering + OBV Naik + Doji + Sentimen Positif)"
+                        "Rumus 8 (Small Cap + Supply Kering + OBV Naik + Doji + Sentimen Positif)",
+                        "Rumus 9 🌙 (BSJP Siluman: Hajar Kanan + Smart Money + Supply Kering)"
                     ]
                 )
                 
@@ -757,6 +761,9 @@ if not df_hasil.empty:
                     render_strategy_table(df_v7, "Screener_Rumus_7")
                 elif "Rumus 8" in pilihan_v:
                     render_strategy_table(df_v8, "Screener_Rumus_8")
+                elif "Rumus 9" in pilihan_v:
+                    st.success("💡 **Logika Rumus 9 (Eksekusi 15:40 - 15:55):** Bandar agresif hajar kanan dan uang institusi masuk (Smart Money), tetapi harga dan volume sengaja ditahan (Supply Kering) agar ritel tidak sadar. Ini adalah setup sempurna untuk potensi GAP UP besok pagi!")
+                    render_strategy_table(df_v9, "Screener_Rumus_9_BSJP")
 
             # ===============================================
             # AREA KECERDASAN BUATAN (AI)
