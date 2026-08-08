@@ -582,12 +582,21 @@ def main():
                 print(f"⚠️ Machine Learning Error: {e}")
                 df_hasil['Prediksi Machine Learning'] = "Biasa / Mengikuti Pasar"
 
+            # 1. SELALU Simpan Data Utama (Overwrite untuk Web)
             df_hasil.to_csv(FILE_HASIL, index=False)
             
-            if 9 <= jam_sekarang < 17:
+            # 2. LOGIKA JAM & HARI PINTAR
+            hari_ini = now.weekday() # 0 = Senin, 1=Selasa ... 4=Jumat, 5=Sabtu, 6=Minggu
+            
+            # Jika hari kerja (Senin-Jumat) DAN antara jam 09:00 - 17:00
+            if hari_ini < 5 and 9 <= jam_sekarang < 17:
                 file_exists = os.path.isfile(file_arsip_harian)
                 df_hasil.to_csv(file_arsip_harian, mode='a', header=not file_exists, index=False)
                 print(f"✅ Selesai! Data Web diperbarui & Diarsipkan ke: {file_arsip_harian}")
+            # Jika hari Sabtu atau Minggu
+            elif hari_ini >= 5:
+                print(f"✅ Selesai! Data Web diperbarui. (Mode Akhir Pekan 🏖️: Bursa Libur, Pengarsipan Dimatikan).")
+            # Jika hari kerja tapi di luar jam bursa (Malam/Pagi buta)
             else:
                 print(f"✅ Selesai! Data Web diperbarui. (Mode Malam 🌙: Pengarsipan dinonaktifkan).")
         else:
