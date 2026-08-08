@@ -118,7 +118,7 @@ if not os.path.exists(FILE_CONFIG):
     with open(FILE_CONFIG, "w") as f: json.dump(DEFAULT_CONFIG, f, indent=4)
 else:
     with open(FILE_CONFIG, "r") as f: cek_config = json.load(f)
-    if "Kondisi Supply" not in cek_config.get("MASTER_FILTERS", {}):
+    if "Status Fibonacci" not in cek_config.get("MASTER_FILTERS", {}):
         with open(FILE_CONFIG, "w") as f: json.dump(DEFAULT_CONFIG, f, indent=4)
 
 with open(FILE_CONFIG, "r") as f: WEB_CONFIG = json.load(f)
