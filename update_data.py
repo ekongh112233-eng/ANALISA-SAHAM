@@ -386,6 +386,57 @@ def hitung_semua_indikator(df_saham, ticker, aman_session):
     except:
         status_supply = "Normal / Sedang Transisi"
 
+    # ==========================================
+    # RUMUS BARU: FIBONACCI RETRACEMENT (Otomatis)
+    # ==========================================
+    try:
+        swing_high = df_saham['High'].max()
+        swing_low = df_saham['Low'].min()
+        selisih = swing_high - swing_low
+        
+        if selisih > 0:
+            f_236 = swing_high - (0.236 * selisih)
+            f_382 = swing_high - (0.382 * selisih)
+            f_500 = swing_high - (0.500 * selisih)
+            f_618 = swing_high - (0.618 * selisih) # Golden Ratio
+            f_786 = swing_high - (0.786 * selisih)
+            
+            if close_today >= f_236:
+                support_fibo = f_236
+                nama_fibo = "23.6%"
+            elif close_today >= f_382:
+                support_fibo = f_382
+                nama_fibo = "38.2%"
+            elif close_today >= f_500:
+                support_fibo = f_500
+                nama_fibo = "50.0%"
+            elif close_today >= f_618:
+                support_fibo = f_618
+                nama_fibo = "61.8% (Golden Ratio)"
+            elif close_today >= f_786:
+                support_fibo = f_786
+                nama_fibo = "78.6%"
+            else:
+                support_fibo = swing_low
+                nama_fibo = "Bottom / 100%"
+
+            jarak_ke_fibo = ((close_today - support_fibo) / support_fibo) * 100
+            
+            # KOMBINASI (CONFLUENCE): Fibo + Supply Kering / Oversold / Hammer
+            if jarak_ke_fibo <= 2.5: # Toleransi jarak 2.5% dari garis Support
+                if "Oversold" in status_stoch or "Kering" in status_supply or "Jarum Bawah" in deteksi_shakeout:
+                    status_fibo = f"Golden Rebound Fibo {nama_fibo} 🎯"
+                else:
+                    status_fibo = f"Dekat Support Fibo {nama_fibo}"
+            elif jarak_ke_fibo <= 6.0:
+                status_fibo = f"Mendekati Fibo {nama_fibo}"
+            else:
+                status_fibo = "Mengambang (Jauh dari Fibo)"
+        else:
+            status_fibo = "Normal / Sideways"
+    except:
+        status_fibo = "Normal / Sideways"
+
     return {
         "Harga (Rp)": close_today, "Harga MA20": int(ma_20), "Support": int(support_20), "Resistance": int(resist_20),
         "Change (%)": change_pct, "Volume": vol_today, "Vol Breakout": vol_breakout, "RSI (14D)": rsi,
@@ -401,7 +452,8 @@ def hitung_semua_indikator(df_saham, ticker, aman_session):
         "Status Open": status_open, "Risk/Reward Ratio": status_rrr,
         "Status Stochastic": status_stoch,
         "Status Sentimen": status_sentimen,
-        "Kondisi Supply": status_supply
+        "Kondisi Supply": status_supply,
+        "Status Fibonacci": status_fibo
     }
 
 # ==========================================
