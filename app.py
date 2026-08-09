@@ -799,10 +799,10 @@ if not df_hasil.empty:
                         if not saham_valid:
                             st.error("❌ Saham yang Anda masukkan sudah terbang terlalu tinggi (>5%). Gunakan AI Bandar untuk mencari saham yang masih di bawah!")
                         else:
-                            if len(saham_valid) > 20:
-                                st.info("🤖 Menyaring 20 saham terbaik untuk mencegah limit AI...")
+                            if len(saham_valid) > 19:
+                                st.info("🤖 Menyaring 19 saham terbaik untuk mencegah limit AI...")
                                 df_valid = df_valid.sort_values(by=['Total Score', 'Volume'], ascending=[False, False])
-                                saham_valid = df_valid['Ticker'].head(20).tolist()
+                                saham_valid = df_valid['Ticker'].head(19).tolist()
                             
                             with st.spinner(f"Menganalisa {len(saham_valid)} saham untuk BSJP besok..."):
                                 data_kompilasi = {}
