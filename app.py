@@ -885,10 +885,10 @@ if not df_hasil.empty:
                         if not saham_valid:
                             st.error("❌ Semua saham yang dimasukkan sudah terbang atau turun terlalu dalam. Masukkan saham yang sedang TRANSAKSI SISIR (Stagnan)!")
                         else:
-                            if len(saham_valid) > 8:
-                                st.info("🤖 Menyaring 8 saham 'Sideways' terbaik agar aman dari limit token Groq...")
+                            if len(saham_valid) > 15:
+                                st.info("🤖 Menyaring 15 saham 'Sideways' terbaik agar aman dari limit token Groq...")
                                 df_valid = df_valid.sort_values(by=['Total Score', 'Volume'], ascending=[False, False])
-                                saham_valid = df_valid['Ticker'].head(8).tolist()
+                                saham_valid = df_valid['Ticker'].head(15).tolist()
                             
                             with st.spinner(f"Membedah DNA {len(saham_valid)} saham yang masih tidur. Mencari kandidat ledakan..."):
                                 data_kompilasi = {}
