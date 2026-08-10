@@ -17,8 +17,16 @@ FILE_HASIL = "hasil_screener.csv"
 LOCK_FILE = "sedang_update.lock"
 DIR_ARSIP = "Arsip_Data_Harian"
 
-# Token curian Stockbit Anda (pastikan diperbarui jika masa aktifnya habis)
-TOKEN_CURIAN = "eyJhbGciOiJSUzI1NiIsImtpZCI6ImExNWQ5OGE2LTdkYzgtNDM3NS05NDk0LTEyOWJlM2RlODVkNCIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7InVzZSI6Ik1VSEFNTUFERUtPTlVHUk9ITyIsImVtYSI6Im11aGFtbWFkZWtvbnVncm9obzRAZ21haWwuY29tIiwiZnVsIjoiTVVIQU1NQUQgRUtPIE5VR1JPSE8iLCJzZXMiOiIyV3V2OXYxTDZLTURVTkpnIiwiZHZjIjoiYWFiNmIyYjFmYTBjYmE0M2FjMjA4ZGNiZmQzMDAwNzAiLCJ1aWQiOjU2NTY4OTUsImNvdSI6IklEIn0sImV4cCI6MTc4NjIwODE1NiwiaWF0IjoxNzg2MTIxNzU2LCJpc3MiOiJTVE9DS0JJVCIsImp0aSI6IjJiY2QxMjg4LWY0NzEtNGFmNS1hZmEyLTU5NzYyNzFhM2U5NyIsIm5iZiI6MTc4NjEyMTc1NiwidmVyIjoidjEifQ.A10CYc6pR0DbEUNIbBbuo-GVQRwpaGYVQAyjD85nOD7bCYpOYx4fwwTGPmkVM_xuObRhNeTmxXQ0cU-Io1sA6w2qMIx9GdNlOD_q8WpU5S73foyHet2y7uJqpfdlQ78ASahDw2iEf9-G6fyfg3Fsys34IbZwdm9mRt2sqtCeLLHFYnzVSEhqdsCG5g4gob4dF5bIlEisZoYoyRUKSyHO63LDV7hAjmS_T74Z7dMqRj3KCcG3Zc21Q3vRkyuAAoX-gB3c_9j4uUnVr3r1j7HhEHF8Q5EWVb0ZL49LS5XtxfEMgbBqwv3xttV8-3o8bgCpA6xgcj451GVDKHTNtZcLUg" # <-- Ganti dengan token lengkap Anda di sini
+# --- KONFIGURASI STOCKBIT DARI FILE TERPISAH ---
+import os
+
+# Membaca token dari file token_stockbit.txt
+try:
+    with open("token_stockbit.txt", "r") as file:
+        TOKEN_CURIAN = file.read().strip()
+except FileNotFoundError:
+    print("⚠️ File 'token_stockbit.txt' tidak ditemukan! Pastikan Anda sudah membuat filenya.")
+    TOKEN_CURIAN = "" # Kosongkan jika file tidak ada
 
 if not os.path.exists(DIR_ARSIP):
     os.makedirs(DIR_ARSIP)
