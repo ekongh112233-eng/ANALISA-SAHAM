@@ -370,7 +370,7 @@ def analisa_forensik_ai(data_saham_dict, master_filters_keys):
     except Exception as e: return f"❌ Gagal memproses data dengan Groq. Error: {e}"
 
 # ==========================================
-# AI PEMBURU ARA - SPESIALIS DNA LEDAKAN (V8)
+# AI PEMBURU ARA - SPESIALIS AKUMULASI SILUMAN (V8)
 # ==========================================
 def analisa_pemburu_ara_ai(data_saham_dict):
     try:
@@ -397,45 +397,31 @@ def analisa_pemburu_ara_ai(data_saham_dict):
             payload_text += f"\n--- STOCK: {ticker} ---\n"
             payload_text += f"Current Price: Rp {data['harga']} (Change: {data['change']}%)\n"
             payload_text += f"Broker Summary: {data['broksum']}\n"
-            payload_text += f"RVOL (Volume Anomaly): {data['rvol']}\n"
-            payload_text += f"OBV Trend: {data['obv']}\n"
-            payload_text += f"Bollinger Bands: {data['bb']}\n"
-            payload_text += f"Wyckoff Phase: {data['siklus']}\n"
+            payload_text += f"Kondisi Supply: {data.get('supply', 'Normal')}\n"
             payload_text += f"A/D Power: {data['ad']}\n"
-            payload_text += f"RSI (14D): {data['rsi']}\n"
+            payload_text += f"Bollinger Bands: {data['bb']}\n"
             payload_text += f"Historical Trace:\n{data['histori']}\n"
 
         prompt = f"""
-        You are an Elite Quantitative Analyst and Top Gainer (ARA) Hunter in the Indonesian Stock Market.
-        I am giving you data for {len(data_saham_dict)} candidate stocks.
-
-        YOUR ONLY MISSION:
-        Find stocks that perfectly match the "Explosion DNA Pattern" discovered by our forensic lab. 
-        The exact DNA criteria for an imminent pump are:
-        1. RVOL (Volume Anomaly) is exceptionally high (over 150% or 300%).
-        2. OBV Trend shows 'Accumulation' (Up).
-        3. Bollinger Bands are in a 'Squeeze' or 'Breakout Upper' state.
-        4. Wyckoff Phase is in Accumulation, Mark-Up, or Mark-Down (signaling a reversal).
-        5. A/D Power indicates strong Smart Money Accumulation.
-        6. RSI (14D) is in a safe zone (not extremely overbought).
-        7. Broker Summary shows active Top Buyers (Accumulation) from known manipulative brokers.
-
-        STOCK DATA TO ANALYZE:
+        Kamu adalah AlgoTrade AI, Spesialis "Stealth Accumulation" (Akumulasi Siluman / Transaksi Sisir) di Bursa Efek Indonesia.
+        Fokus utamamu BUKAN mencari saham yang sudah naik/terbang. Tugasmu adalah mendeteksi saham yang harganya sedang DITAHAN (stagnan, sideways, candle tipis) tapi diam-diam DIAKUMULASI MASIF oleh Bandar.
+        
+        Berikut data {len(data_saham_dict)} saham sideways hari ini:
         {payload_text}
-
-        STRICT RULES:
-        1. OUTPUT LANGUAGE: You MUST write your entire response in Indonesian.
-        2. DO NOT list all stocks. ONLY output the TOP 3 to 5 stocks that have the highest match percentage with the DNA criteria above. Ignore the weak ones.
-        3. Format your response with a Markdown table: [Peringkat, Ticker, Skor Kecocokan DNA (0-100%), Kesimpulan Utama].
-        4. Below the table, provide a brutally honest, analytical explanation for EACH selected stock. You MUST explicitly state how the stock's data matches the DNA criteria (e.g., mention its RVOL, OBV, BB status, and Broker activity).
-        5. Provide a realistic Trading Plan (Buy Area, Target Price for a massive pump >10%, Cut Loss).
-        6. Start immediately with the table. No pleasantries.
+        
+        TUGAS UTAMA & ATURAN KETAT:
+        1. Cari saham dengan ciri-ciri: Harga tertahan (Change % mendekati 0), 'Kondisi Supply' Kering, tetapi 'Broker Summary' menunjukkan akumulasi kuat (Acc) oleh broker agresif (MG, YP, CC, dll).
+        2. Abaikan saham yang distribusinya masif (Dist), meskipun harganya stagnan.
+        3. OUTPUT BAHASA INDONESIA. Jangan sebutkan semua saham. Pilih 1 hingga 3 saham yang paling memenuhi kriteria "Akumulasi Siluman" dan sangat siap meledak (Gap Up/ARA) besok pagi!
+        4. Buat tabel Markdown: [Peringkat, Ticker, Skor Akumulasi Siluman, Kesimpulan Utama].
+        5. Di bawah tabel, jelaskan secara brutal dan tajam alasan logis mengapa bandar diam-diam memborong saham tersebut. Sebutkan detail brokernya.
+        6. Berikan Trading Plan super realistis (Buy Area, Target Price ledakan, dan Cut Loss).
         """
         completion = client.chat.completions.create(
             model=model_andalan, messages=[{"role": "user", "content": prompt}],
             temperature=0.2, max_tokens=3000, top_p=1, stream=False,
         )
-        return completion.choices[0].message.content + f"\n\n---\n🎯 *AI Spesialis DNA ARA: **{model_andalan}** via Groq*"
+        return completion.choices[0].message.content + f"\n\n---\n🎯 *AI Akumulasi Siluman: **{model_andalan}** via Groq*"
     except Exception as e: return f"❌ Gagal memproses data dengan Groq. Error: {e}"
 
 # ==========================================
@@ -879,8 +865,8 @@ if not df_hasil.empty:
 
                 # --- LOGIKA PEMBURU ARA ---
                 elif "Pemburu ARA" in pilihan_ai:
-                    st.subheader("🎯 Pemburu ARA (Spesialis DNA Ledakan)")
-                    st.markdown("Paste daftar saham Anda di sini. AI akan menyeleksi **HANYA** saham yang memenuhi kriteria **DNA ARA** (RVOL >150%, OBV Naik, BB Squeeze/Breakout, Akumulasi A/D Kuat, Broksum Akum).")
+                    st.subheader("🎯 Pemburu ARA (Spesialis Akumulasi Siluman / Transaksi Sisir)")
+                    st.markdown("Paste daftar saham Anda di sini. AI akan menyeleksi **HANYA** saham yang sedang tidur/sideways (naik/turun maksimal 3%) namun memiliki jejak akumulasi bandar yang diam-diam agresif.")
                     input_v8 = st.text_area("📋 Paste Daftar Saham (Pisahkan dengan Enter/Spasi):", placeholder="Contoh:\nVISI\nPANI\nDMAS", height=200, key="input_pemburu_ara")
                     
                     if st.button("🚀 Mulai Deteksi DNA"):
@@ -890,19 +876,21 @@ if not df_hasil.empty:
                         saham_valid = [s for s in saham_unik if s in df_hasil['Ticker'].values]
                         
                         df_valid = df_hasil[df_hasil['Ticker'].isin(saham_valid)].copy()
+                        
+                        # FILTER TRANSAKSI SISIR (Max Naik 3%, Max Turun -3%)
                         if 'Change (%)' in df_valid.columns:
-                            df_valid = df_valid[df_valid['Change (%)'] <= 5.0]
+                            df_valid = df_valid[(df_valid['Change (%)'] <= 3.0) & (df_valid['Change (%)'] >= -3.0)]
                             saham_valid = df_valid['Ticker'].tolist()
 
                         if not saham_valid:
-                            st.error("❌ Semua saham yang dimasukkan sudah terbang >5%. Masukkan saham yang MASIH DATAR atau MERAH!")
+                            st.error("❌ Semua saham yang dimasukkan sudah terbang atau turun terlalu dalam. Masukkan saham yang sedang TRANSAKSI SISIR (Stagnan)!")
                         else:
-                            if len(saham_valid) > 15:
-                                st.info("🤖 Menyaring 15 saham 'Sideways' terbaik untuk mencegah limit AI...")
+                            if len(saham_valid) > 8:
+                                st.info("🤖 Menyaring 8 saham 'Sideways' terbaik agar aman dari limit token Groq...")
                                 df_valid = df_valid.sort_values(by=['Total Score', 'Volume'], ascending=[False, False])
-                                saham_valid = df_valid['Ticker'].head(15).tolist()
+                                saham_valid = df_valid['Ticker'].head(8).tolist()
                             
-                            with st.spinner(f"Membedah DNA {len(saham_valid)} saham yang masih datar. Mencari kandidat ARA..."):
+                            with st.spinner(f"Membedah DNA {len(saham_valid)} saham yang masih tidur. Mencari kandidat ledakan..."):
                                 data_kompilasi = {}
                                 for ticker in saham_valid:
                                     data_saham = df_hasil[df_hasil['Ticker'] == ticker].iloc[0]
@@ -918,11 +906,10 @@ if not df_hasil.empty:
                                         'siklus': data_saham.get('Fase Siklus Bandar', 'Normal'),
                                         'ad': data_saham.get('Kekuatan A/D', 'Netral'),
                                         'rsi': data_saham.get('RSI (14D)', 50),
+                                        'supply': data_saham.get('Kondisi Supply', 'Normal'), # Menambahkan supply ke memori AI
                                         'histori': teks_ringkasan if teks_ringkasan else "Arsip belum tersedia."
                                     }
                                     
                                 hasil_ai_v8 = analisa_pemburu_ara_ai(data_kompilasi)
                                 st.success("✅ Analisis DNA Selesai!")
-                                st.info(hasil_ai_v8)                    
-else:
-    st.error("Silakan jalankan `update_data.py` terlebih dahulu di terminal untuk memuat data!")
+                                st.info(hasil_ai_v8)
