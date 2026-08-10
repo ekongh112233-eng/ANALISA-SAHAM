@@ -370,7 +370,7 @@ def analisa_forensik_ai(data_saham_dict, master_filters_keys):
     except Exception as e: return f"❌ Gagal memproses data dengan Groq. Error: {e}"
 
 # ==========================================
-# FUNGSI 1: ALGO PENJAGAL (BABAK PENYISIHAN BRUTAL)
+# FUNGSI 1: ALGO PENYISIHAN (SMART QUALIFIER - LEBIH LONGGAR)
 # ==========================================
 def ai_penyisihan_brutal(data_saham_dict, api_key):
     try:
@@ -382,19 +382,24 @@ def ai_penyisihan_brutal(data_saham_dict, api_key):
             payload_text += f"\n[{ticker}] Price:{data['harga']} | Vol:{data['volume']} | Broksum:{data['broksum']} | MM_Pressure:{data['tekanan_bandar']} | AD_Power:{data['ad']} | Supply:{data['supply']} | OBV:{data['obv']} | Fibo:{data['fibo']}"
 
         prompt = f"""
-        You are a Ruthless Hedge Fund Algorithm. Your job is to aggressively filter out weak stocks.
-        I am giving you {len(data_saham_dict)} stocks that are currently sideways/stagnant.
+        You are a Smart Qualifier Algorithm for an Indonesian Hedge Fund. Your job is to screen out obvious garbage, but KEEP potential "Sleeping Giants" for the Grand Final.
+        I am giving you {len(data_saham_dict)} candidate stocks.
         {payload_text}
 
-        BRUTAL ELIMINATION RULES:
-        1. ELIMINATE any stock where 'Broksum' shows Distribution (Dist), regardless of price or volume.
-        2. ELIMINATE any stock where 'AD_Power' shows Distribution.
-        3. ELIMINATE any stock with empty or extremely low volume indicating it is dead/illiquid.
-        4. KEEP ONLY the stocks showing blatant "Stealth Accumulation" (Price is flat, but Broksum is (Acc) by brokers like CC, MG, YP AND Supply is drying up).
+        MODERATE FILTERING RULES:
+        1. ELIMINATE completely dead or illiquid stocks (Volume is 0 or extremely low).
+        2. ELIMINATE stocks where BOTH 'Broksum' AND 'AD_Power' show massive Distribution (Dist / Guyuran).
+        3. PASS THE STOCK to the next round if it shows AT LEAST ONE of these bullish signs:
+           - 'Broksum' shows Accumulation (Acc) by ANY broker.
+           - OR 'AD_Power' shows Smart Money Accumulation.
+           - OR 'Supply' is drying up (Supply Kering / Siap Pump).
+           - OR 'OBV' is trending Up (Akumulasi).
+           - OR it is bouncing off a strong 'Fibo' level.
+        4. Give the stock the benefit of the doubt. If it has mixed but interesting signals, let it pass to the Grand Final.
 
         OUTPUT INSTRUCTION:
         Do NOT provide analysis, tables, or chat. 
-        ONLY return a comma-separated list of the Ticker symbols that survive this brutal filter. 
+        ONLY return a comma-separated list of the Ticker symbols that survive this filter. 
         If NO stock survives, output exactly the word: NONE.
         Example output: BBCA, ASII, GOTO
         """
