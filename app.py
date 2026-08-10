@@ -601,19 +601,22 @@ if not df_hasil.empty:
         with col_broker: 
             search_broker = st.text_input("🕵️ Cari Kode Broker", "", placeholder="Contoh: MG / YP")
         with col_min: 
-            min_price = st.number_input("⬇️ Harga Minimal (Rp)", min_value=0, value=0, step=10, help="Biarkan 0 jika tidak ada batas bawah")
+            min_price = st.number_input("⬇️ Harga Minimal (Rp)", min_value=0, value=0, step=10)
         with col_max: 
-            max_price = st.number_input("⬆️ Harga Maksimal (Rp)", min_value=0, value=0, step=10, help="Biarkan 0 jika tidak ada batas atas")
+            max_price = st.number_input("⬆️ Harga Maksimal (Rp)", min_value=0, value=0, step=10)
 
+        # 1. AMBIL DATA UTAMA 
         df_filtered = df_hasil.copy()
         
-        # Eksekusi Filter Pencarian Ticker & Broker
+        # 2. EKSEKUSI FILTER PENCARIAN (Ticker & Broker)
         if search_ticker: 
-            df_filtered = df_filtered[df_filtered["Ticker"].str.contains(search_ticker.upper(), na=False)]
-        if search_broker and "Broksum" in df_filtered.columns: 
-            df_filtered = df_filtered[df_filtered["Broksum"].str.contains(search_broker.upper(), na=False)]
+            df_filtered = df_filtered[df_filtered["Ticker"].astype(str).str.contains(search_ticker.upper(), na=False)]
             
-        # Eksekusi Filter Harga (Price Min / Max)
+        if search_broker and "Broksum" in df_filtered.columns: 
+            # Menggunakan astype(str) agar kebal terhadap data kosong (NaN)
+            df_filtered = df_filtered[df_filtered["Broksum"].astype(str).str.contains(search_broker.upper(), na=False)]
+            
+        # 3. EKSEKUSI FILTER HARGA
         if min_price > 0:
             df_filtered = df_filtered[df_filtered["Harga (Rp)"] >= min_price]
         if max_price > 0:
