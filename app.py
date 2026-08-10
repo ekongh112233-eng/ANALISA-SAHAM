@@ -394,34 +394,40 @@ def analisa_pemburu_ara_ai(data_saham_dict):
 
         payload_text = ""
         for ticker, data in data_saham_dict.items():
-            payload_text += f"\n--- STOCK: {ticker} ---\n"
-            payload_text += f"Current Price: Rp {data['harga']} (Change: {data['change']}%)\n"
-            payload_text += f"Broker Summary: {data['broksum']}\n"
-            payload_text += f"Kondisi Supply: {data.get('supply', 'Normal')}\n"
-            payload_text += f"A/D Power: {data['ad']}\n"
-            payload_text += f"Bollinger Bands: {data['bb']}\n"
-            payload_text += f"Historical Trace:\n{data['histori']}\n"
+            payload_text += f"\n--- STOCK TICKER: {ticker} ---\n"
+            payload_text += f"Price: Rp {data['harga']} (Change: {data['change']}%, Volume: {data['volume']})\n"
+            payload_text += f"Order Flow & Market Maker: Broksum: {data['broksum']} | MM Pressure: {data['tekanan_bandar']} | Smart Money A/D: {data['ad']} | OBV Trend: {data['obv']}\n"
+            payload_text += f"Supply & Anomalies: Supply Condition: {data['supply']} | RVOL: {data['rvol']} | Shakeout Signal: {data['shakeout']}\n"
+            payload_text += f"Technical & Support: Fibonacci: {data['fibo']} | VWAP: {data['vwap']} | RSI: {data['rsi']} | Stochastic: {data['stochastic']} | MACD: {data['macd']} | BB: {data['bb']} | MA Cross: {data['ma_cross']}\n"
+            payload_text += f"Profile & Cycles: Wyckoff Phase: {data['siklus']} | Candlestick: {data['pola_candle']} | Market Cap: {data['kategori']} | Transaction Class: {data['kelas_transaksi']}\n"
+            payload_text += f"Others: Open Signal: {data['status_open']} | Risk: {data['risiko']} | News Sentiment: {data['sentimen']} | Screener Score: {data['total_score']}/10\n"
+            payload_text += f"5-Day Historical Trace:\n{data['histori']}\n"
 
         prompt = f"""
-        Kamu adalah AlgoTrade AI, Spesialis "Stealth Accumulation" (Akumulasi Siluman / Transaksi Sisir) di Bursa Efek Indonesia.
-        Fokus utamamu BUKAN mencari saham yang sudah naik/terbang. Tugasmu adalah mendeteksi saham yang harganya sedang DITAHAN (stagnan, sideways, candle tipis) tapi diam-diam DIAKUMULASI MASIF oleh Bandar.
-        
-        Berikut data {len(data_saham_dict)} saham sideways hari ini:
+        You are an Elite Quantitative Analyst and Master of "Stealth Accumulation" operating in the Indonesian Stock Market (IDX).
+        Your primary objective is NOT to find stocks that have already surged. Instead, you must detect "Sleeping Giants"—stocks experiencing tight price consolidation (sideways, narrow spread) while simultaneously undergoing MASSIVE HIDDEN ACCUMULATION by institutional players/market makers (Bandar).
+
+        You have access to 30+ comprehensive technical, volume, and order-flow parameters for {len(data_saham_dict)} sideways stocks today:
         {payload_text}
-        
-        TUGAS UTAMA & ATURAN KETAT:
-        1. Cari saham dengan ciri-ciri: Harga tertahan (Change % mendekati 0), 'Kondisi Supply' Kering, tetapi 'Broker Summary' menunjukkan akumulasi kuat (Acc) oleh broker agresif (MG, YP, CC, dll).
-        2. Abaikan saham yang distribusinya masif (Dist), meskipun harganya stagnan.
-        3. OUTPUT BAHASA INDONESIA. Jangan sebutkan semua saham. Pilih 1 hingga 3 saham yang paling memenuhi kriteria "Akumulasi Siluman" dan sangat siap meledak (Gap Up/ARA) besok pagi!
-        4. Buat tabel Markdown: [Peringkat, Ticker, Skor Akumulasi Siluman, Kesimpulan Utama].
-        5. Di bawah tabel, jelaskan secara brutal dan tajam alasan logis mengapa bandar diam-diam memborong saham tersebut. Sebutkan detail brokernya.
-        6. Berikan Trading Plan super realistis (Buy Area, Target Price ledakan, dan Cut Loss).
+
+        YOUR ANALYTICAL DIRECTIVES:
+        1. Holistic Confluence: Do not rely solely on 'Broksum'. Cross-reference it to ensure 'Smart Money A/D' confirms the inflow, 'Supply Condition' is drying up, and the 'OBV Trend' is positive despite flat prices.
+        2. Technical Validation: Look for critical confluence at key levels (e.g., bouncing off Fibonacci supports, solid VWAP positioning, Stochastic Oversold/Golden Cross, MACD Bullish, or reversal candlesticks like Doji/Hammer).
+        3. Ruthless Elimination: Immediately discard any stock showing massive Distribution (Dist) in Broksum or illiquid/empty volume, regardless of how flat the price is.
+        4. Target Selection: Select the TOP 1 to 3 stocks that possess the absolute highest probability of an explosive breakout (Gap Up / ARA) tomorrow morning.
+
+        OUTPUT FORMAT & STRICT RULES:
+        - CRITICAL RULE: YOU MUST WRITE YOUR ENTIRE RESPONSE (INCLUDING HEADERS AND ANALYSIS) IN INDONESIAN (BAHASA INDONESIA).
+        - Start with a Markdown table containing: [Peringkat, Ticker, Skor Potensi Ledakan (0-100%), Trigger Utama].
+        - Below the table, provide a brutally honest, highly detailed, and professional explanation of WHY the market maker is accumulating each selected stock. Explicitly mention the broker codes (e.g., MG, YP, CC), Fibonacci levels, and Supply conditions.
+        - Conclude with a realistic Trading Plan for each selected stock (Buy Area, Target Price for the breakout, and strict Cut Loss level).
         """
+        
         completion = client.chat.completions.create(
             model=model_andalan, messages=[{"role": "user", "content": prompt}],
             temperature=0.2, max_tokens=3000, top_p=1, stream=False,
         )
-        return completion.choices[0].message.content + f"\n\n---\n🎯 *AI Akumulasi Siluman: **{model_andalan}** via Groq*"
+        return completion.choices[0].message.content + f"\n\n---\n🎯 *AI Stealth Accumulation: **{model_andalan}** via Groq*"
     except Exception as e: return f"❌ Gagal memproses data dengan Groq. Error: {e}"
 
 # ==========================================
@@ -899,14 +905,29 @@ if not df_hasil.empty:
                                     data_kompilasi[ticker] = {
                                         'harga': data_saham.get('Harga (Rp)', 0),
                                         'change': data_saham.get('Change (%)', 0),
+                                        'volume': data_saham.get('Volume', 0),
                                         'broksum': data_saham.get('Broksum', 'Tidak Ada'),
+                                        'kategori': data_saham.get('Kategori', 'Normal'),
+                                        'kelas_transaksi': data_saham.get('Kelas Transaksi', 'Normal'),
+                                        'status_open': data_saham.get('Status Open', 'Normal'),
+                                        'fibo': data_saham.get('Status Fibonacci', 'Normal'),
+                                        'vwap': data_saham.get('Posisi VWAP', 'Normal'),
+                                        'pola_candle': data_saham.get('Pola Candle', 'Normal'),
+                                        'shakeout': data_saham.get('Sinyal Cuci Barang', 'Normal'),
                                         'rvol': data_saham.get('RVOL (Anomali Vol)', 'Normal'),
-                                        'obv': data_saham.get('OBV Trend', 'Netral'),
-                                        'bb': data_saham.get('Status BB', 'Normal'),
+                                        'supply': data_saham.get('Kondisi Supply', 'Normal'),
+                                        'tekanan_bandar': data_saham.get('Tekanan Bandar', 'Normal'),
+                                        'ad': data_saham.get('Kekuatan A/D', 'Normal'),
+                                        'obv': data_saham.get('OBV Trend', 'Normal'),
                                         'siklus': data_saham.get('Fase Siklus Bandar', 'Normal'),
-                                        'ad': data_saham.get('Kekuatan A/D', 'Netral'),
                                         'rsi': data_saham.get('RSI (14D)', 50),
-                                        'supply': data_saham.get('Kondisi Supply', 'Normal'), # Menambahkan supply ke memori AI
+                                        'stochastic': data_saham.get('Status Stochastic', 'Normal'),
+                                        'macd': data_saham.get('MACD', 'Normal'),
+                                        'bb': data_saham.get('Status BB', 'Normal'),
+                                        'ma_cross': data_saham.get('MA Cross', 'Normal'),
+                                        'risiko': data_saham.get('Risiko', 'Normal'),
+                                        'sentimen': data_saham.get('Status Sentimen', 'Normal'),
+                                        'total_score': data_saham.get('Total Score', 0),
                                         'histori': teks_ringkasan if teks_ringkasan else "Arsip belum tersedia."
                                     }
                                     
