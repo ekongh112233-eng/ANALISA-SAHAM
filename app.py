@@ -594,14 +594,30 @@ if not df_hasil.empty:
                     idx_opsi = info["options"].index(val_sekarang) if val_sekarang in info["options"] else 0
                     filter_terpilih[db_key] = st.selectbox(info["label"], info["options"], index=idx_opsi, key=f"main_{db_key}", on_change=manual_override)
 
-        col_search, col_broker, _ = st.columns([1, 1, 1])
-        with col_search: search_ticker = st.text_input("🔍 Cari Kode Saham", "", placeholder="Contoh: BBCA")
-        with col_broker: search_broker = st.text_input("🕵️ Cari Kode Broker (Broksum)", "", placeholder="Contoh: MG / YP")
+        # Membagi layout menjadi 4 kolom yang proporsional dan rapi
+        col_search, col_broker, col_min, col_max = st.columns([1.5, 1.5, 1, 1])
+        with col_search: 
+            search_ticker = st.text_input("🔍 Cari Kode Saham", "", placeholder="Contoh: BBCA")
+        with col_broker: 
+            search_broker = st.text_input("🕵️ Cari Kode Broker", "", placeholder="Contoh: MG / YP")
+        with col_min: 
+            min_price = st.number_input("⬇️ Harga Minimal (Rp)", min_value=0, value=0, step=10, help="Biarkan 0 jika tidak ada batas bawah")
+        with col_max: 
+            max_price = st.number_input("⬆️ Harga Maksimal (Rp)", min_value=0, value=0, step=10, help="Biarkan 0 jika tidak ada batas atas")
 
         df_filtered = df_hasil.copy()
-        if search_ticker: df_filtered = df_filtered[df_filtered["Ticker"].str.contains(search_ticker.upper(), na=False)]
+        
+        # Eksekusi Filter Pencarian Ticker & Broker
+        if search_ticker: 
+            df_filtered = df_filtered[df_filtered["Ticker"].str.contains(search_ticker.upper(), na=False)]
         if search_broker and "Broksum" in df_filtered.columns: 
             df_filtered = df_filtered[df_filtered["Broksum"].str.contains(search_broker.upper(), na=False)]
+            
+        # Eksekusi Filter Harga (Price Min / Max)
+        if min_price > 0:
+            df_filtered = df_filtered[df_filtered["Harga (Rp)"] >= min_price]
+        if max_price > 0:
+            df_filtered = df_filtered[df_filtered["Harga (Rp)"] <= max_price]
         
         for db_key, nilai in filter_terpilih.items():
             if nilai != "Semua":
