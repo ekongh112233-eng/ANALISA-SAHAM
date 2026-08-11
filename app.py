@@ -370,7 +370,7 @@ def analisa_forensik_ai(data_saham_dict, master_filters_keys):
     except Exception as e: return f"❌ Gagal memproses data dengan Groq. Error: {e}"
 
 # ==========================================
-# FUNGSI AI: LIVE RADAR PEMBURU ARA (VERSI LONGGAR / TOLERAN)
+# FUNGSI AI: LIVE RADAR PEMBURU ARA (ADAPTASI AI BANDAR)
 # ==========================================
 def ai_radar_pemburu(data_saham_dict, api_key):
     try:
@@ -379,34 +379,33 @@ def ai_radar_pemburu(data_saham_dict, api_key):
         
         payload_text = ""
         for ticker, data in data_saham_dict.items():
-            payload_text += f"\n--- STOCK TICKER: {ticker} ---\n"
-            payload_text += f"Price: Rp {data['harga']} (Vol: {data['volume']})\n"
-            payload_text += f"Broksum: {data['broksum']} | MM Pressure: {data['tekanan_bandar']} | A/D: {data['ad']} | OBV: {data['obv']}\n"
-            payload_text += f"Supply: {data['supply']} | RVOL: {data['rvol']} | Shakeout: {data['shakeout']}\n"
-            payload_text += f"Technical: Fibo: {data['fibo']} | VWAP: {data['vwap']} | RSI: {data['rsi']} | Stoch: {data['stochastic']} | BB: {data['bb']}\n"
-            payload_text += f"Profile: Wyckoff: {data['siklus']} | Candle: {data['pola_candle']}\n"
+            payload_text += f"\n--- SAHAM: {ticker} ---\n"
+            payload_text += f"Harga: Rp {data['harga']} | Volume: {data['volume']}\n"
+            payload_text += f"Broksum: {data['broksum']} | Tekanan Bandar: {data['tekanan_bandar']} | A/D: {data['ad']}\n"
+            payload_text += f"Supply: {data['supply']} | OBV: {data['obv']} | Siklus: {data['siklus']}\n"
+            payload_text += f"Fibo: {data['fibo']} | VWAP: {data['vwap']} | Stoch: {data['stochastic']}\n"
 
         prompt = f"""
-        You are an AI Stock Radar for the Indonesian Market.
+        You are the mastermind of an elite Indonesian stock market syndicate (Mega Bandar).
+        Your specialty is finding "Stealth Accumulation" for BSJP (Beli Sore Jual Pagi) strategy.
         I am giving you a batch of {len(data_saham_dict)} stocks.
         
         DATA BATCH:
         {payload_text}
 
-        YOUR MISSION:
-        1. DO NOT BE TOO STRICT. You are a radar looking for ANY interesting anomalies or potentials, not just perfect setups. 
-        2. Look for things like: slight accumulation in Broksum, reaching strong support (Fibo/VWAP/Oversold), dry supply, or positive OBV.
-        3. BE LENIENT. From these {len(data_saham_dict)} stocks, select the 1 to 3 MOST PROMISING stocks, even if their setup is not 100% perfect. Give them the benefit of the doubt.
-        4. ONLY output the exact word "TIDAK_ADA" if EVERY SINGLE STOCK in this batch is completely dead (Volume = 0) or undergoing massive, brutal distribution.
-        5. For the selected stock(s), output your analysis IN INDONESIAN using this EXACT Markdown format:
+        YOUR STRICT TASK:
+        1. You MUST select the BEST 1 or 2 stocks from this batch, regardless of how bad the overall batch is. Pick the "best of the worst" if you have to. 
+        2. Look for ANY sign of Accumulation in Broksum, positive OBV, dry supply, or oversold stochastic.
+        3. If ALL {len(data_saham_dict)} stocks in this batch have exactly 0 (zero) volume, then ONLY output the exact word: SKIP_GRUP
+        4. Otherwise, output your analysis IN INDONESIAN using this exact Markdown format:
            ### 🚀 [TICKER]
-           - **Potensi & Anomali:** [Jelaskan alasan kenapa saham ini menarik. Apa yang bagus dari Broksum atau Teknikalnya?]
+           - **Analisa Bandar:** [Jelaskan alasan kenapa saham ini yang terbaik di grup ini. Sebutkan detail Broksum atau Teknikalnya]
            - **Trading Plan:** [Buy Area, Target Price, Cut Loss]
         """
         
         completion = client.chat.completions.create(
             model=model_andalan, messages=[{"role": "user", "content": prompt}],
-            temperature=0.3, max_tokens=2500, top_p=1, stream=False,
+            temperature=0.3, max_tokens=2000, top_p=1, stream=False,
         )
         return completion.choices[0].message.content
     except Exception as e:
@@ -990,7 +989,7 @@ if not df_hasil.empty:
                         hasil_ai = ai_radar_pemburu(data_grup, GROQ_API_KEY)
                         
                         # Cek apakah AI menemukan sesuatu
-                        if "TIDAK_ADA" not in hasil_ai and "ERROR" not in hasil_ai:
+                        if "SKIP_GRUP" not in hasil_ai and "ERROR" not in hasil_ai:
                             teks_lolos = f"<div style='background-color: #0f172a; padding: 15px; border-radius: 8px; border-left: 5px solid #06b6d4; margin-bottom: 10px;'>{hasil_ai}</div>"
                             st.session_state.radar_hasil.append(teks_lolos)
 
