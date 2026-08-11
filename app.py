@@ -1107,7 +1107,12 @@ if not df_hasil.empty:
                                     
                                     st.success("🎉 **TURNAMEN SELESAI!**")
                                     st.balloons()
-                                    st.markdown(f"<div style='background-color: #0f172a; padding: 20px; border-radius: 12px; border: 1px solid #3b82f6;'>{hasil_grand_final}</div>", unsafe_allow_html=True)
+                                    
+                                    # Menggunakan container bawaan Streamlit agar tabel Markdown terbaca sempurna
+                                    with st.container():
+                                        st.markdown("---")
+                                        st.markdown(hasil_grand_final)
+                                        st.markdown("---")
                                     
                                     st.session_state.radar_aktif = False
                                     if st.button("🔄 Mulai Turnamen Baru"):
