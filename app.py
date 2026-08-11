@@ -370,7 +370,8 @@ def analisa_forensik_ai(data_saham_dict, master_filters_keys):
     except Exception as e: return f"❌ Gagal memproses data dengan Groq. Error: {e}"
 
 # ==========================================
-# FUNGSI 1: AI PENYISIHAN (SEDIKIT BRUTAL)
+# FUNGSI 1: AI PENYISIHAN (TETAP MENGGUNAKAN LLAMA 3.3)
+# Alasan: Sangat cepat, stabil, dan patuh pada format koma tanpa basa-basi.
 # ==========================================
 def ai_penyisihan_turnamen(data_saham_dict, api_key):
     try:
@@ -379,7 +380,7 @@ def ai_penyisihan_turnamen(data_saham_dict, api_key):
         try:
             daftar_model = client.models.list()
             semua_model = [m.id for m in daftar_model.data]
-            model_70b = [m for m in semua_model if '70b' in m.lower() and '3.1' not in m.lower()]
+            model_70b = [m for m in semua_model if '70b' in m.lower() and '3.1' not in m.lower() and 'deepseek' not in m.lower()]
             if model_70b: model_andalan = model_70b[0] 
         except: pass
 
@@ -413,18 +414,15 @@ def ai_penyisihan_turnamen(data_saham_dict, api_key):
         return "ERROR"
 
 # ==========================================
-# FUNGSI 2: AI GRAND FINAL (TOP 10)
+# FUNGSI 2: AI GRAND FINAL (MENGGUNAKAN DEEPSEEK-R1)
+# Alasan: Logika tingkat tinggi, mampu membedah data dan meracik Trading Plan paling logis.
 # ==========================================
 def ai_grand_final_top10(data_saham_dict, api_key):
+    import re # Diperlukan untuk menghapus tag <think> bawaan DeepSeek
     try:
         client = Groq(api_key=api_key)
-        model_andalan = "llama-3.3-70b-versatile"
-        try:
-            daftar_model = client.models.list()
-            semua_model = [m.id for m in daftar_model.data]
-            model_70b = [m for m in semua_model if '70b' in m.lower() and '3.1' not in m.lower()]
-            if model_70b: model_andalan = model_70b[0] 
-        except: pass
+        # BERALIH KE DEEPSEEK R1 UNTUK KEDALAMAN ANALISIS
+        model_andalan = "deepseek-r1-distill-llama-70b"
 
         payload_text = ""
         for ticker, data in data_saham_dict.items():
@@ -451,11 +449,18 @@ def ai_grand_final_top10(data_saham_dict, api_key):
         - Provide a concise Trading Plan (Buy Area, Target Price, Cut Loss) for the Top 3 stocks on your list.
         """
         
+        # Max tokens diperbesar karena DeepSeek memakan token untuk proses berpikirnya
         completion = client.chat.completions.create(
             model=model_andalan, messages=[{"role": "user", "content": prompt}],
-            temperature=0.3, max_tokens=3500, top_p=1, stream=False,
+            temperature=0.3, max_tokens=4000, top_p=1, stream=False,
         )
-        return completion.choices[0].message.content + f"\n\n---\n🏆 *Grand Final AI: **{model_andalan}** via Groq*"
+        
+        raw_content = completion.choices[0].message.content
+        
+        # PEMBERSIHAN OUTPUT DEEPSEEK (Membungkam proses berpikirnya agar UI bersih)
+        clean_content = re.sub(r'<think>.*?</think>', '', raw_content, flags=re.DOTALL).strip()
+        
+        return clean_content + f"\n\n---\n🏆 *Grand Final AI: **{model_andalan}** via Groq*"
     except Exception as e:
         return f"❌ Gagal memproses Grand Final. Error: {e}"
 
