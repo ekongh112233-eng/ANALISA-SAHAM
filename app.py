@@ -370,7 +370,7 @@ def analisa_forensik_ai(data_saham_dict, master_filters_keys):
     except Exception as e: return f"❌ Gagal memproses data dengan Groq. Error: {e}"
 
 # ==========================================
-# FUNGSI 1: ALGO PENYISIHAN (SMART QUALIFIER - LEBIH LONGGAR)
+# FUNGSI 1: ALGO PENYISIHAN (SANGAT LONGGAR / LENIENT QUALIFIER)
 # ==========================================
 def ai_penyisihan_brutal(data_saham_dict, api_key):
     try:
@@ -382,31 +382,27 @@ def ai_penyisihan_brutal(data_saham_dict, api_key):
             payload_text += f"\n[{ticker}] Price:{data['harga']} | Vol:{data['volume']} | Broksum:{data['broksum']} | MM_Pressure:{data['tekanan_bandar']} | AD_Power:{data['ad']} | Supply:{data['supply']} | OBV:{data['obv']} | Fibo:{data['fibo']}"
 
         prompt = f"""
-        You are a Smart Qualifier Algorithm for an Indonesian Hedge Fund. Your job is to screen out obvious garbage, but KEEP potential "Sleeping Giants" for the Grand Final.
-        I am giving you {len(data_saham_dict)} candidate stocks.
+        You are a very Lenient Qualifier Algorithm. Your goal is to PASS AS MANY STOCKS AS POSSIBLE to the Grand Final, only dropping the absolute worst ones.
+        Here is the batch of stocks:
         {payload_text}
 
-        MODERATE FILTERING RULES:
-        1. ELIMINATE completely dead or illiquid stocks (Volume is 0 or extremely low).
-        2. ELIMINATE stocks where BOTH 'Broksum' AND 'AD_Power' show massive Distribution (Dist / Guyuran).
-        3. PASS THE STOCK to the next round if it shows AT LEAST ONE of these bullish signs:
-           - 'Broksum' shows Accumulation (Acc) by ANY broker.
-           - OR 'AD_Power' shows Smart Money Accumulation.
-           - OR 'Supply' is drying up (Supply Kering / Siap Pump).
-           - OR 'OBV' is trending Up (Akumulasi).
-           - OR it is bouncing off a strong 'Fibo' level.
-        4. Give the stock the benefit of the doubt. If it has mixed but interesting signals, let it pass to the Grand Final.
+        LENIENT FILTERING RULES:
+        1. KEEP ALL STOCKS BY DEFAULT.
+        2. ONLY ELIMINATE a stock if it meets BOTH of these criteria:
+           - Volume is extremely low (less than 1000).
+           - AND Broksum explicitly contains '(Dist)' or 'Distribusi'.
+        3. If a stock's data is mostly 'Normal', 'Netral', or 'Tidak Ada', YOU MUST KEEP IT. Do not eliminate it just because it lacks strong bullish signals.
+        4. We are looking for hidden gems in oversold (bearish) conditions, so bad technicals are expected. DO NOT eliminate based on bad technicals alone.
 
         OUTPUT INSTRUCTION:
-        Do NOT provide analysis, tables, or chat. 
-        ONLY return a comma-separated list of the Ticker symbols that survive this filter. 
-        If NO stock survives, output exactly the word: NONE.
+        Do NOT provide analysis or chat. 
+        ONLY return a comma-separated list of the Ticker symbols that SURVIVE. 
         Example output: BBCA, ASII, GOTO
         """
         
         completion = client.chat.completions.create(
             model=model_andalan, messages=[{"role": "user", "content": prompt}],
-            temperature=0.1, max_tokens=100, top_p=1, stream=False,
+            temperature=0.1, max_tokens=150, top_p=1, stream=False,
         )
         return completion.choices[0].message.content
     except Exception as e:
