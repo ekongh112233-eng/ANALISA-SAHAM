@@ -370,59 +370,29 @@ def analisa_forensik_ai(data_saham_dict, master_filters_keys):
     except Exception as e: return f"❌ Gagal memproses data dengan Groq. Error: {e}"
 
 # ==========================================
-# FUNGSI 1: AI PENYISIHAN (TETAP MENGGUNAKAN LLAMA 3.3)
-# Alasan: Sangat cepat, stabil, dan patuh pada format koma tanpa basa-basi.
+# FUNGSI 2: AI GRAND FINAL (HYBRID / AUTO-FALLBACK)
 # ==========================================
-def ai_penyisihan_turnamen(data_saham_dict, api_key):
+def ai_grand_final_top10(data_saham_dict, api_key):
+    import re
     try:
         client = Groq(api_key=api_key)
+        
+        # 1. Jadikan Llama 3.3 sebagai cadangan utama yang PASTI JALAN
         model_andalan = "llama-3.3-70b-versatile"
+        
+        # 2. Radar pelacak otomatis: Cari DeepSeek yang masih aktif di server
         try:
             daftar_model = client.models.list()
             semua_model = [m.id for m in daftar_model.data]
-            model_70b = [m for m in semua_model if '70b' in m.lower() and '3.1' not in m.lower() and 'deepseek' not in m.lower()]
-            if model_70b: model_andalan = model_70b[0] 
-        except: pass
-
-        payload_text = ""
-        for ticker, data in data_saham_dict.items():
-            payload_text += f"\n[{ticker}] Price:{data['harga']} | Vol:{data['volume']} | Broksum:{data['broksum']} | MM:{data['tekanan_bandar']} | Supply:{data['supply']} | OBV:{data['obv']} | Fibo:{data['fibo']}"
-
-        prompt = f"""
-        You are a Strict Quantitative Filter for an Indonesian Hedge Fund. 
-        Evaluate these {len(data_saham_dict)} candidate stocks.
-        {payload_text}
-
-        SLIGHTLY BRUTAL ELIMINATION RULES:
-        1. ELIMINATE stocks if Volume is extremely low or dead (Illiquid).
-        2. ELIMINATE stocks if Broksum clearly indicates massive Distribution (Dist / Guyuran) without any redeeming technical factors.
-        3. KEEP the stock ONLY if it shows "Stealth Accumulation" clues: Broksum is (Acc), OR Supply is drying up (Supply Kering), OR OBV is trending Up, OR it is bouncing off a strong Fibonacci support.
-        
-        OUTPUT INSTRUCTION:
-        Do NOT provide any analysis, tables, or conversational text. 
-        ONLY return a comma-separated list of the Ticker symbols that SURVIVE this elimination. 
-        If absolutely NO stock survives, output exactly the word: SKIP_GRUP
-        Example output: BBCA, ASII, GOTO
-        """
-        
-        completion = client.chat.completions.create(
-            model=model_andalan, messages=[{"role": "user", "content": prompt}],
-            temperature=0.1, max_tokens=100, top_p=1, stream=False,
-        )
-        return completion.choices[0].message.content
-    except Exception as e:
-        return "ERROR"
-
-# ==========================================
-# FUNGSI 2: AI GRAND FINAL (MENGGUNAKAN DEEPSEEK-R1)
-# Alasan: Logika tingkat tinggi, mampu membedah data dan meracik Trading Plan paling logis.
-# ==========================================
-def ai_grand_final_top10(data_saham_dict, api_key):
-    import re # Diperlukan untuk menghapus tag <think> bawaan DeepSeek
-    try:
-        client = Groq(api_key=api_key)
-        # BERALIH KE DEEPSEEK R1 UNTUK KEDALAMAN ANALISIS
-        model_andalan = "deepseek-r1-distill-llama-70b"
+            
+            # Cari nama model yang mengandung kata 'deepseek'
+            model_deepseek = [m for m in semua_model if 'deepseek' in m.lower()]
+            if model_deepseek:
+                # Prioritaskan yang versi 70b jika ada
+                ds_70b = [m for m in model_deepseek if '70b' in m.lower()]
+                model_andalan = ds_70b[0] if ds_70b else model_deepseek[0]
+        except: 
+            pass
 
         payload_text = ""
         for ticker, data in data_saham_dict.items():
@@ -449,7 +419,6 @@ def ai_grand_final_top10(data_saham_dict, api_key):
         - Provide a concise Trading Plan (Buy Area, Target Price, Cut Loss) for the Top 3 stocks on your list.
         """
         
-        # Max tokens diperbesar karena DeepSeek memakan token untuk proses berpikirnya
         completion = client.chat.completions.create(
             model=model_andalan, messages=[{"role": "user", "content": prompt}],
             temperature=0.3, max_tokens=4000, top_p=1, stream=False,
