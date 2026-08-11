@@ -370,7 +370,7 @@ def analisa_forensik_ai(data_saham_dict, master_filters_keys):
     except Exception as e: return f"❌ Gagal memproses data dengan Groq. Error: {e}"
 
 # ==========================================
-# FUNGSI AI: LIVE RADAR PEMBURU ARA
+# FUNGSI AI: LIVE RADAR PEMBURU ARA (VERSI LONGGAR / TOLERAN)
 # ==========================================
 def ai_radar_pemburu(data_saham_dict, api_key):
     try:
@@ -387,25 +387,26 @@ def ai_radar_pemburu(data_saham_dict, api_key):
             payload_text += f"Profile: Wyckoff: {data['siklus']} | Candle: {data['pola_candle']}\n"
 
         prompt = f"""
-        You are an Elite Quantitative Analyst scanning {len(data_saham_dict)} stocks for an Indonesian Hedge Fund.
+        You are an AI Stock Radar for the Indonesian Market.
+        I am giving you a batch of {len(data_saham_dict)} stocks.
         
         DATA BATCH:
         {payload_text}
 
         YOUR MISSION:
-        1. Deeply analyze all provided stocks. Look for "Stealth Accumulation" (Price is flat, but Market Makers/Bandar are secretly accumulating, e.g., Broksum is Acc, Supply is Dry, OBV is Up).
-        2. Filter ruthlessly. Only select stocks that genuinely have a high probability of exploding (Gap Up/ARA).
-        3. If NONE of the stocks in this batch are good, YOU MUST ONLY OUTPUT THE EXACT WORD: TIDAK_ADA
-        4. If you find 1 or more good stocks, output your analysis IN INDONESIAN using this Markdown format for EACH selected stock:
+        1. DO NOT BE TOO STRICT. You are a radar looking for ANY interesting anomalies or potentials, not just perfect setups. 
+        2. Look for things like: slight accumulation in Broksum, reaching strong support (Fibo/VWAP/Oversold), dry supply, or positive OBV.
+        3. BE LENIENT. From these {len(data_saham_dict)} stocks, select the 1 to 3 MOST PROMISING stocks, even if their setup is not 100% perfect. Give them the benefit of the doubt.
+        4. ONLY output the exact word "TIDAK_ADA" if EVERY SINGLE STOCK in this batch is completely dead (Volume = 0) or undergoing massive, brutal distribution.
+        5. For the selected stock(s), output your analysis IN INDONESIAN using this EXACT Markdown format:
            ### 🚀 [TICKER]
-           - **Alasan Bandar:** [Explain the exact broker accumulation and anomalies]
-           - **Konfirmasi Teknikal:** [Explain Fibo, VWAP, or Stochastic support]
-           - **Trading Plan:** Buy Area, Target Price, Cut Loss.
+           - **Potensi & Anomali:** [Jelaskan alasan kenapa saham ini menarik. Apa yang bagus dari Broksum atau Teknikalnya?]
+           - **Trading Plan:** [Buy Area, Target Price, Cut Loss]
         """
         
         completion = client.chat.completions.create(
             model=model_andalan, messages=[{"role": "user", "content": prompt}],
-            temperature=0.2, max_tokens=2500, top_p=1, stream=False,
+            temperature=0.3, max_tokens=2500, top_p=1, stream=False,
         )
         return completion.choices[0].message.content
     except Exception as e:
