@@ -370,6 +370,50 @@ def analisa_forensik_ai(data_saham_dict, master_filters_keys):
     except Exception as e: return f"❌ Gagal memproses data dengan Groq. Error: {e}"
 
 # ==========================================
+# FUNGSI 1: AI PENYISIHAN (TETAP MENGGUNAKAN LLAMA 3.3)
+# Alasan: Sangat cepat, stabil, dan patuh pada format koma tanpa basa-basi.
+# ==========================================
+def ai_penyisihan_turnamen(data_saham_dict, api_key):
+    try:
+        client = Groq(api_key=api_key)
+        model_andalan = "llama-3.3-70b-versatile"
+        try:
+            daftar_model = client.models.list()
+            semua_model = [m.id for m in daftar_model.data]
+            model_70b = [m for m in semua_model if '70b' in m.lower() and '3.1' not in m.lower() and 'deepseek' not in m.lower()]
+            if model_70b: model_andalan = model_70b[0] 
+        except: pass
+
+        payload_text = ""
+        for ticker, data in data_saham_dict.items():
+            payload_text += f"\n[{ticker}] Price:{data['harga']} | Vol:{data['volume']} | Broksum:{data['broksum']} | MM:{data['tekanan_bandar']} | Supply:{data['supply']} | OBV:{data['obv']} | Fibo:{data['fibo']}"
+
+        prompt = f"""
+        You are a Strict Quantitative Filter for an Indonesian Hedge Fund. 
+        Evaluate these {len(data_saham_dict)} candidate stocks.
+        {payload_text}
+
+        SLIGHTLY BRUTAL ELIMINATION RULES:
+        1. ELIMINATE stocks if Volume is extremely low or dead (Illiquid).
+        2. ELIMINATE stocks if Broksum clearly indicates massive Distribution (Dist / Guyuran) without any redeeming technical factors.
+        3. KEEP the stock ONLY if it shows "Stealth Accumulation" clues: Broksum is (Acc), OR Supply is drying up (Supply Kering), OR OBV is trending Up, OR it is bouncing off a strong Fibonacci support.
+        
+        OUTPUT INSTRUCTION:
+        Do NOT provide any analysis, tables, or conversational text. 
+        ONLY return a comma-separated list of the Ticker symbols that SURVIVE this elimination. 
+        If absolutely NO stock survives, output exactly the word: SKIP_GRUP
+        Example output: BBCA, ASII, GOTO
+        """
+        
+        completion = client.chat.completions.create(
+            model=model_andalan, messages=[{"role": "user", "content": prompt}],
+            temperature=0.1, max_tokens=100, top_p=1, stream=False,
+        )
+        return completion.choices[0].message.content
+    except Exception as e:
+        return "ERROR"
+
+# ==========================================
 # FUNGSI 2: AI GRAND FINAL (HYBRID / AUTO-FALLBACK)
 # ==========================================
 def ai_grand_final_top10(data_saham_dict, api_key):
