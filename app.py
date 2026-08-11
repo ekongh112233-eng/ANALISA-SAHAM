@@ -375,8 +375,19 @@ def analisa_forensik_ai(data_saham_dict, master_filters_keys):
 def ai_radar_pemburu(data_saham_dict, api_key):
     try:
         client = Groq(api_key=api_key)
-        model_andalan = "llama-3.1-70b-versatile"
         
+        # PERBAIKAN: Menggunakan model Llama terbaru dari Groq
+        model_andalan = "llama-3.3-70b-versatile" 
+        
+        # Jaring Pengaman: Jika nama model di atas suatu saat diganti lagi oleh Groq, 
+        # mesin akan otomatis mencari model 70b lain yang masih hidup.
+        try:
+            daftar_model = client.models.list()
+            semua_model = [m.id for m in daftar_model.data]
+            model_70b = [m for m in semua_model if '70b' in m.lower() and '3.1' not in m.lower()]
+            if model_70b: model_andalan = model_70b[0] 
+        except: pass
+
         payload_text = ""
         for ticker, data in data_saham_dict.items():
             payload_text += f"\n--- SAHAM: {ticker} ---\n"
