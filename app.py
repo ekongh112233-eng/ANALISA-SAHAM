@@ -370,17 +370,12 @@ def analisa_forensik_ai(data_saham_dict, master_filters_keys):
     except Exception as e: return f"❌ Gagal memproses data dengan Groq. Error: {e}"
 
 # ==========================================
-# FUNGSI AI: LIVE RADAR PEMBURU ARA (ADAPTASI AI BANDAR)
+# FUNGSI 1: AI PENYISIHAN (SEDIKIT BRUTAL)
 # ==========================================
-def ai_radar_pemburu(data_saham_dict, api_key):
+def ai_penyisihan_turnamen(data_saham_dict, api_key):
     try:
         client = Groq(api_key=api_key)
-        
-        # PERBAIKAN: Menggunakan model Llama terbaru dari Groq
-        model_andalan = "llama-3.3-70b-versatile" 
-        
-        # Jaring Pengaman: Jika nama model di atas suatu saat diganti lagi oleh Groq, 
-        # mesin akan otomatis mencari model 70b lain yang masih hidup.
+        model_andalan = "llama-3.3-70b-versatile"
         try:
             daftar_model = client.models.list()
             semua_model = [m.id for m in daftar_model.data]
@@ -390,37 +385,79 @@ def ai_radar_pemburu(data_saham_dict, api_key):
 
         payload_text = ""
         for ticker, data in data_saham_dict.items():
-            payload_text += f"\n--- SAHAM: {ticker} ---\n"
-            payload_text += f"Harga: Rp {data['harga']} | Volume: {data['volume']}\n"
-            payload_text += f"Broksum: {data['broksum']} | Tekanan Bandar: {data['tekanan_bandar']} | A/D: {data['ad']}\n"
-            payload_text += f"Supply: {data['supply']} | OBV: {data['obv']} | Siklus: {data['siklus']}\n"
-            payload_text += f"Fibo: {data['fibo']} | VWAP: {data['vwap']} | Stoch: {data['stochastic']}\n"
+            payload_text += f"\n[{ticker}] Price:{data['harga']} | Vol:{data['volume']} | Broksum:{data['broksum']} | MM:{data['tekanan_bandar']} | Supply:{data['supply']} | OBV:{data['obv']} | Fibo:{data['fibo']}"
 
         prompt = f"""
-        You are the mastermind of an elite Indonesian stock market syndicate (Mega Bandar).
-        Your specialty is finding "Stealth Accumulation" for BSJP (Beli Sore Jual Pagi) strategy.
-        I am giving you a batch of {len(data_saham_dict)} stocks.
-        
-        DATA BATCH:
+        You are a Strict Quantitative Filter for an Indonesian Hedge Fund. 
+        Evaluate these {len(data_saham_dict)} candidate stocks.
         {payload_text}
 
-        YOUR STRICT TASK:
-        1. You MUST select the BEST 1 or 2 stocks from this batch, regardless of how bad the overall batch is. Pick the "best of the worst" if you have to. 
-        2. Look for ANY sign of Accumulation in Broksum, positive OBV, dry supply, or oversold stochastic.
-        3. If ALL {len(data_saham_dict)} stocks in this batch have exactly 0 (zero) volume, then ONLY output the exact word: SKIP_GRUP
-        4. Otherwise, output your analysis IN INDONESIAN using this exact Markdown format:
-           ### 🚀 [TICKER]
-           - **Analisa Bandar:** [Jelaskan alasan kenapa saham ini yang terbaik di grup ini. Sebutkan detail Broksum atau Teknikalnya]
-           - **Trading Plan:** [Buy Area, Target Price, Cut Loss]
+        SLIGHTLY BRUTAL ELIMINATION RULES:
+        1. ELIMINATE stocks if Volume is extremely low or dead (Illiquid).
+        2. ELIMINATE stocks if Broksum clearly indicates massive Distribution (Dist / Guyuran) without any redeeming technical factors.
+        3. KEEP the stock ONLY if it shows "Stealth Accumulation" clues: Broksum is (Acc), OR Supply is drying up (Supply Kering), OR OBV is trending Up, OR it is bouncing off a strong Fibonacci support.
+        
+        OUTPUT INSTRUCTION:
+        Do NOT provide any analysis, tables, or conversational text. 
+        ONLY return a comma-separated list of the Ticker symbols that SURVIVE this elimination. 
+        If absolutely NO stock survives, output exactly the word: SKIP_GRUP
+        Example output: BBCA, ASII, GOTO
         """
         
         completion = client.chat.completions.create(
             model=model_andalan, messages=[{"role": "user", "content": prompt}],
-            temperature=0.3, max_tokens=2000, top_p=1, stream=False,
+            temperature=0.1, max_tokens=100, top_p=1, stream=False,
         )
         return completion.choices[0].message.content
     except Exception as e:
-        return f"ERROR: {e}"
+        return "ERROR"
+
+# ==========================================
+# FUNGSI 2: AI GRAND FINAL (TOP 10)
+# ==========================================
+def ai_grand_final_top10(data_saham_dict, api_key):
+    try:
+        client = Groq(api_key=api_key)
+        model_andalan = "llama-3.3-70b-versatile"
+        try:
+            daftar_model = client.models.list()
+            semua_model = [m.id for m in daftar_model.data]
+            model_70b = [m for m in semua_model if '70b' in m.lower() and '3.1' not in m.lower()]
+            if model_70b: model_andalan = model_70b[0] 
+        except: pass
+
+        payload_text = ""
+        for ticker, data in data_saham_dict.items():
+            payload_text += f"\n--- {ticker} ---\n"
+            payload_text += f"Harga: Rp {data['harga']} | Vol: {data['volume']}\n"
+            payload_text += f"Broksum: {data['broksum']} | Tekanan: {data['tekanan_bandar']} | Supply: {data['supply']}\n"
+            payload_text += f"Teknikal: OBV: {data['obv']} | Fibo: {data['fibo']} | VWAP: {data['vwap']} | Candle: {data['pola_candle']}\n"
+
+        prompt = f"""
+        You are the Chief Investment Officer of a Top-Tier Indonesian Hedge Fund.
+        I am giving you {len(data_saham_dict)} Elite Semi-Finalist stocks. They have all survived a strict elimination phase and possess signs of stealth accumulation.
+        
+        DATA SEMI-FINALIS:
+        {payload_text}
+
+        YOUR GRAND FINALE MISSION:
+        1. Deeply compare and contrast all these surviving stocks.
+        2. Rank and select EXACTLY the TOP 10 BEST STOCKS with the absolute highest probability of exploding tomorrow (Gap Up/ARA). (If there are fewer than 10 stocks provided, rank all of them).
+        
+        STRICT OUTPUT RULES:
+        - YOU MUST WRITE YOUR ENTIRE RESPONSE IN INDONESIAN (BAHASA INDONESIA).
+        - Start directly with a Markdown table: [Peringkat, Ticker, Skor Potensi (0-100%), Trigger Utama Ledakan].
+        - Below the table, provide a brutally honest, highly detailed explanation of WHY these stocks made it to the Top 10. Detail the specific broker activities (Broksum) and technical confluences (Fibo, Supply).
+        - Provide a concise Trading Plan (Buy Area, Target Price, Cut Loss) for the Top 3 stocks on your list.
+        """
+        
+        completion = client.chat.completions.create(
+            model=model_andalan, messages=[{"role": "user", "content": prompt}],
+            temperature=0.3, max_tokens=3500, top_p=1, stream=False,
+        )
+        return completion.choices[0].message.content + f"\n\n---\n🏆 *Grand Final AI: **{model_andalan}** via Groq*"
+    except Exception as e:
+        return f"❌ Gagal memproses Grand Final. Error: {e}"
 
 
 # ==========================================
@@ -906,21 +943,22 @@ if not df_hasil.empty:
                                     st.success("✅ DNA Berhasil Dibongkar!")
                                     st.info(hasil_ai)
 
-                # --- LOGIKA PEMBURU ARA (LIVE RADAR ANTI-MACET) ---
+                # --- LOGIKA PEMBURU ARA (TURNAMEN ESTAFET ANTI-MACET) ---
                 elif "Pemburu ARA" in pilihan_ai:
                     import re
                     import time
                     
-                    st.subheader("🎯 Radar Pemburu ARA (Live Auto-Scanner)")
-                    st.markdown("Paste ratusan (bahkan 900+) saham di sini. Mesin akan berjalan otomatis, membedah 10 saham per menit, dan **langsung menampilkan hasilnya ke layar Anda** tanpa perlu menunggu semuanya selesai.")
+                    st.subheader("🎯 Turnamen AI (Spesialis Akumulasi Siluman)")
+                    st.markdown("Paste ratusan (bahkan 900+) saham di sini. Mesin akan melakukan kualifikasi brutal (10 saham/menit) secara estafet. Saham yang lolos akan dikumpulkan untuk diadu di **Grand Final Top 10** pada akhir putaran.")
                     
                     # 1. SETUP MEMORI WEB (SESSION STATE)
                     if 'radar_aktif' not in st.session_state:
                         st.session_state.radar_aktif = False
+                        st.session_state.radar_tahap = 1 # 1: Penyisihan, 2: Grand Final
                         st.session_state.radar_antrean = []
-                        st.session_state.radar_hasil = []
                         st.session_state.radar_index = 0
                         st.session_state.total_grup = 0
+                        st.session_state.semi_finalists = []
 
                     GROQ_API_KEY = st.secrets.get("GROQ_API_KEY", None)
                     
@@ -930,7 +968,7 @@ if not df_hasil.empty:
                     if not st.session_state.radar_aktif:
                         input_v8 = st.text_area("📋 Paste Daftar Saham (Pisahkan dengan Enter/Spasi):", placeholder="Contoh:\nVISI\nPANI\nDMAS", height=200, key="input_pemburu_ara")
                         
-                        if st.button("🚀 Mulai Radar Otomatis"):
+                        if st.button("🚀 Mulai Turnamen Otomatis"):
                             if not GROQ_API_KEY:
                                 st.error("❌ Kunci API Groq belum dipasang!")
                             else:
@@ -941,98 +979,118 @@ if not df_hasil.empty:
                                 if not saham_valid:
                                     st.error("❌ Kode saham tidak valid atau tidak ada di database.")
                                 else:
-                                    # Kunci: Pecah menjadi grup 10, simpan ke memori!
                                     batch_size = 10
                                     groups = [saham_valid[i:i + batch_size] for i in range(0, len(saham_valid), batch_size)]
                                     
                                     st.session_state.radar_antrean = groups
                                     st.session_state.total_grup = len(groups)
-                                    st.session_state.radar_hasil = []
                                     st.session_state.radar_index = 0
+                                    st.session_state.semi_finalists = []
+                                    st.session_state.radar_tahap = 1
                                     st.session_state.radar_aktif = True
                                     
-                                    # Refresh paksa untuk masuk ke Mode Eksekusi
                                     st.rerun()
 
                     # ==========================================
                     # MODE EKSEKUSI (MESIN MENYALA)
                     # ==========================================
                     else:
-                        st.warning("⚠️ **JANGAN ME-REFRESH BROWSER!** Mesin sedang berjalan otomatis.")
-                        if st.button("🛑 Hentikan Radar Darurat"):
+                        st.warning("⚠️ **JANGAN ME-REFRESH BROWSER!** Mesin sedang menjalankan turnamen.")
+                        if st.button("🛑 Hentikan Turnamen Darurat"):
                             st.session_state.radar_aktif = False
                             st.rerun()
 
-                        idx = st.session_state.radar_index
-                        total = st.session_state.total_grup
-                        
-                        # Tampilkan Progress Bar
-                        st.info(f"⚙️ **Membedah Grup {idx + 1} dari {total}**...")
-                        st.progress((idx) / total if total > 0 else 0)
-
-                        # Ambil Grup saat ini
-                        group_sekarang = st.session_state.radar_antrean[idx]
-                        
-                        # Siapkan data untuk AI
-                        data_grup = {}
-                        for ticker in group_sekarang:
-                            data_saham = df_hasil[df_hasil['Ticker'] == ticker].iloc[0]
-                            data_grup[ticker] = {
-                                'harga': data_saham.get('Harga (Rp)', 0),
-                                'volume': data_saham.get('Volume', 0),
-                                'broksum': data_saham.get('Broksum', 'Tidak Ada'),
-                                'tekanan_bandar': data_saham.get('Tekanan Bandar', 'Normal'),
-                                'ad': data_saham.get('Kekuatan A/D', 'Normal'),
-                                'supply': data_saham.get('Kondisi Supply', 'Normal'),
-                                'obv': data_saham.get('OBV Trend', 'Normal'),
-                                'fibo': data_saham.get('Status Fibonacci', 'Normal'),
-                                'vwap': data_saham.get('Posisi VWAP', 'Normal'),
-                                'rsi': data_saham.get('RSI (14D)', 50),
-                                'stochastic': data_saham.get('Status Stochastic', 'Normal'),
-                                'bb': data_saham.get('Status BB', 'Normal'),
-                                'rvol': data_saham.get('RVOL (Anomali Vol)', 'Normal'),
-                                'shakeout': data_saham.get('Sinyal Cuci Barang', 'Normal'),
-                                'siklus': data_saham.get('Fase Siklus Bandar', 'Normal'),
-                                'pola_candle': data_saham.get('Pola Candle', 'Normal')
-                            }
+                        # --- TAHAP 1: PENYISIHAN ESTAFET ---
+                        if st.session_state.radar_tahap == 1:
+                            idx = st.session_state.radar_index
+                            total = st.session_state.total_grup
                             
-                        # Panggil AI
-                        hasil_ai = ai_radar_pemburu(data_grup, GROQ_API_KEY)
-                        
-                        # === MODE DEBUGGING: TAMPILKAN SEMUA HASIL / ERROR ===
-                        if "SKIP_GRUP" not in hasil_ai:
-                            if "ERROR" in hasil_ai:
-                                # Jika Groq menolak/Limit, tampilkan box merah
-                                teks_lolos = f"<div style='background-color: #450a0a; padding: 15px; border-radius: 8px; border-left: 5px solid #ef4444; margin-bottom: 10px; color: #fca5a5;'><b>⚠️ TERJADI PENOLAKAN DARI SERVER GROQ:</b><br>{hasil_ai}</div>"
-                            else:
-                                # Jika berhasil, tampilkan box biru normal
-                                teks_lolos = f"<div style='background-color: #0f172a; padding: 15px; border-radius: 8px; border-left: 5px solid #06b6d4; margin-bottom: 10px;'>{hasil_ai}</div>"
+                            st.info(f"⚔️ **Babak Penyisihan: Membedah Grup {idx + 1} dari {total}**...")
+                            st.progress((idx) / total if total > 0 else 0)
+
+                            group_sekarang = st.session_state.radar_antrean[idx]
                             
-                            st.session_state.radar_hasil.append(teks_lolos)
-
-                        # Majukan index untuk grup berikutnya
-                        st.session_state.radar_index += 1
-
-                        # Tampilkan "Brankas Hasil" secara Real-Time
-                        st.markdown("### 💎 Brankas Harta Karun (Hasil Sementara)")
-                        if not st.session_state.radar_hasil:
-                            st.info("Belum ada saham yang memenuhi kriteria ketat AI. Menunggu grup selanjutnya...")
-                        else:
-                            for h in st.session_state.radar_hasil:
-                                st.markdown(h, unsafe_allow_html=True)
+                            data_grup = {}
+                            for ticker in group_sekarang:
+                                data_saham = df_hasil[df_hasil['Ticker'] == ticker].iloc[0]
+                                data_grup[ticker] = {
+                                    'harga': data_saham.get('Harga (Rp)', 0),
+                                    'volume': data_saham.get('Volume', 0),
+                                    'broksum': data_saham.get('Broksum', 'Tidak Ada'),
+                                    'tekanan_bandar': data_saham.get('Tekanan Bandar', 'Normal'),
+                                    'supply': data_saham.get('Kondisi Supply', 'Normal'),
+                                    'obv': data_saham.get('OBV Trend', 'Normal'),
+                                    'fibo': data_saham.get('Status Fibonacci', 'Normal')
+                                }
                                 
-                        # LOGIKA ISTIRAHAT & REFRESH OTOMATIS
-                        if st.session_state.radar_index < total:
-                            placeholder_timer = st.empty()
-                            for i in range(60, 0, -1):
-                                placeholder_timer.warning(f"⏳ Mendinginkan server Groq agar tidak terblokir... Lanjut ke Grup {idx + 2} dalam **{i} detik**.")
-                                time.sleep(1)
-                            # Setelah 60 detik, web me-refresh dirinya sendiri secara otomatis
-                            st.rerun()
-                        else:
-                            # Jika seluruh antrean habis
-                            st.session_state.radar_aktif = False
-                            st.success("🎉 **SELESAI! Seluruh saham telah berhasil dipindai oleh AI.**")
-                            st.balloons()
-                            if st.button("🔄 Kembali / Reset"):
+                            hasil_kualifikasi = ai_penyisihan_turnamen(data_grup, GROQ_API_KEY)
+                            
+                            if "SKIP_GRUP" not in hasil_kualifikasi and "ERROR" not in hasil_kualifikasi:
+                                # Ekstrak Ticker yang lolos
+                                lolos = [s.strip().upper() for s in hasil_kualifikasi.replace('`', '').split(',')]
+                                lolos_valid = [s for s in lolos if s in group_sekarang] 
+                                st.session_state.semi_finalists.extend(lolos_valid)
+
+                            st.session_state.radar_index += 1
+
+                            # Tampilkan Daftar Sementara
+                            st.markdown("### 🏆 Daftar Semi-Finalis Sementara")
+                            if not st.session_state.semi_finalists:
+                                st.info("Belum ada yang lolos kualifikasi brutal...")
+                            else:
+                                st.success(f"Berhasil mengumpulkan **{len(st.session_state.semi_finalists)} saham** unggulan: {', '.join(st.session_state.semi_finalists)}")
+
+                            if st.session_state.radar_index < total:
+                                placeholder_timer = st.empty()
+                                for i in range(60, 0, -1):
+                                    placeholder_timer.warning(f"⏳ Jeda API (Rate Limit): Lanjut ke Grup {idx + 2} dalam **{i} detik**.")
+                                    time.sleep(1)
                                 st.rerun()
+                            else:
+                                # Semua grup selesai, lanjut ke Grand Final
+                                st.session_state.radar_tahap = 2
+                                st.rerun()
+
+                        # --- TAHAP 2: GRAND FINAL ---
+                        elif st.session_state.radar_tahap == 2:
+                            st.markdown("### 🏟️ MEMULAI GRAND FINAL")
+                            st.progress(1.0)
+                            
+                            semi_finalists = st.session_state.semi_finalists
+                            
+                            if not semi_finalists:
+                                st.error("💀 Sangat brutal! Tidak ada satu pun saham yang lolos dari babak kualifikasi hari ini.")
+                                st.session_state.radar_aktif = False
+                                if st.button("🔄 Reset"): st.rerun()
+                            else:
+                                # Jaga-jaga jika saham lolos terlalu banyak (Max 30 untuk Grand Final agar token aman)
+                                if len(semi_finalists) > 35:
+                                    st.warning("⚠️ Saham yang lolos terlalu banyak. AI akan memilih 35 terbaik berdasarkan skor sistem sebelum masuk Grand Final.")
+                                    df_semi = df_hasil[df_hasil['Ticker'].isin(semi_finalists)].sort_values(by=['Total Score', 'Volume'], ascending=[False, False])
+                                    semi_finalists = df_semi['Ticker'].head(35).tolist()
+
+                                with st.spinner(f"🧠 AI Master sedang meracik Grand Final TOP 10 dari {len(semi_finalists)} saham Semi-Finalis..."):
+                                    data_final = {}
+                                    for ticker in semi_finalists:
+                                        data_saham = df_hasil[df_hasil['Ticker'] == ticker].iloc[0]
+                                        data_final[ticker] = {
+                                            'harga': data_saham.get('Harga (Rp)', 0),
+                                            'volume': data_saham.get('Volume', 0),
+                                            'broksum': data_saham.get('Broksum', 'Tidak Ada'),
+                                            'tekanan_bandar': data_saham.get('Tekanan Bandar', 'Normal'),
+                                            'supply': data_saham.get('Kondisi Supply', 'Normal'),
+                                            'obv': data_saham.get('OBV Trend', 'Normal'),
+                                            'fibo': data_saham.get('Status Fibonacci', 'Normal'),
+                                            'vwap': data_saham.get('Posisi VWAP', 'Normal'),
+                                            'pola_candle': data_saham.get('Pola Candle', 'Normal')
+                                        }
+                                        
+                                    hasil_grand_final = ai_grand_final_top10(data_final, GROQ_API_KEY)
+                                    
+                                    st.success("🎉 **TURNAMEN SELESAI!**")
+                                    st.balloons()
+                                    st.markdown(f"<div style='background-color: #0f172a; padding: 20px; border-radius: 12px; border: 1px solid #3b82f6;'>{hasil_grand_final}</div>", unsafe_allow_html=True)
+                                    
+                                    st.session_state.radar_aktif = False
+                                    if st.button("🔄 Mulai Turnamen Baru"):
+                                        st.rerun()
