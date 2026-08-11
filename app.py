@@ -988,9 +988,15 @@ if not df_hasil.empty:
                         # Panggil AI
                         hasil_ai = ai_radar_pemburu(data_grup, GROQ_API_KEY)
                         
-                        # Cek apakah AI menemukan sesuatu
-                        if "SKIP_GRUP" not in hasil_ai and "ERROR" not in hasil_ai:
-                            teks_lolos = f"<div style='background-color: #0f172a; padding: 15px; border-radius: 8px; border-left: 5px solid #06b6d4; margin-bottom: 10px;'>{hasil_ai}</div>"
+                        # === MODE DEBUGGING: TAMPILKAN SEMUA HASIL / ERROR ===
+                        if "SKIP_GRUP" not in hasil_ai:
+                            if "ERROR" in hasil_ai:
+                                # Jika Groq menolak/Limit, tampilkan box merah
+                                teks_lolos = f"<div style='background-color: #450a0a; padding: 15px; border-radius: 8px; border-left: 5px solid #ef4444; margin-bottom: 10px; color: #fca5a5;'><b>⚠️ TERJADI PENOLAKAN DARI SERVER GROQ:</b><br>{hasil_ai}</div>"
+                            else:
+                                # Jika berhasil, tampilkan box biru normal
+                                teks_lolos = f"<div style='background-color: #0f172a; padding: 15px; border-radius: 8px; border-left: 5px solid #06b6d4; margin-bottom: 10px;'>{hasil_ai}</div>"
+                            
                             st.session_state.radar_hasil.append(teks_lolos)
 
                         # Majukan index untuk grup berikutnya
