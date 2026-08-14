@@ -416,7 +416,7 @@ def ai_penyisihan_turnamen(data_saham_dict, api_key):
 # ==========================================
 # FUNGSI 2: AI GRAND FINAL (HYBRID / AUTO-FALLBACK)
 # ==========================================
-def ai_grand_final_top10(data_saham_dict, api_key):
+def ai_grand_final_top5(data_saham_dict, api_key):
     import re
     try:
         client = Groq(api_key=api_key)
@@ -454,12 +454,12 @@ def ai_grand_final_top10(data_saham_dict, api_key):
 
         YOUR GRAND FINALE MISSION:
         1. Deeply compare and contrast all these surviving stocks.
-        2. Rank and select EXACTLY the TOP 10 BEST STOCKS with the absolute highest probability of exploding tomorrow (Gap Up/ARA). (If there are fewer than 10 stocks provided, rank all of them).
+        2. Rank and select EXACTLY the TOP 5 BEST STOCKS with the absolute highest probability of exploding tomorrow (Gap Up/ARA). (If there are fewer than 5 stocks provided, rank all of them).
         
         STRICT OUTPUT RULES:
         - YOU MUST WRITE YOUR ENTIRE RESPONSE IN INDONESIAN (BAHASA INDONESIA).
         - Start directly with a Markdown table: [Peringkat, Ticker, Skor Potensi (0-100%), Trigger Utama Ledakan].
-        - Below the table, provide a brutally honest, highly detailed explanation of WHY these stocks made it to the Top 10. Detail the specific broker activities (Broksum) and technical confluences (Fibo, Supply).
+        - Below the table, provide a brutally honest, highly detailed explanation of WHY these stocks made it to the Top 5. Detail the specific broker activities (Broksum) and technical confluences (Fibo, Supply).
         - Provide a concise Trading Plan (Buy Area, Target Price, Cut Loss) for the Top 3 stocks on your list.
         """
         
@@ -967,7 +967,7 @@ if not df_hasil.empty:
                     import time
                     
                     st.subheader("🎯 Turnamen AI (Spesialis Akumulasi Siluman)")
-                    st.markdown("Paste ratusan (bahkan 900+) saham di sini. Mesin akan melakukan kualifikasi brutal (10 saham/menit) secara estafet. Saham yang lolos akan dikumpulkan untuk diadu di **Grand Final Top 10** pada akhir putaran.")
+                    st.markdown("Paste ratusan (bahkan 900+) saham di sini. Mesin akan melakukan kualifikasi brutal (5 saham/menit) secara estafet. Saham yang lolos akan dikumpulkan untuk diadu di **Grand Final Top 5** pada akhir putaran.")
                     
                     # 1. SETUP MEMORI WEB (SESSION STATE)
                     if 'radar_aktif' not in st.session_state:
@@ -1087,7 +1087,7 @@ if not df_hasil.empty:
                                     df_semi = df_hasil[df_hasil['Ticker'].isin(semi_finalists)].sort_values(by=['Total Score', 'Volume'], ascending=[False, False])
                                     semi_finalists = df_semi['Ticker'].head(35).tolist()
 
-                                with st.spinner(f"🧠 AI Master sedang meracik Grand Final TOP 10 dari {len(semi_finalists)} saham Semi-Finalis..."):
+                                with st.spinner(f"🧠 AI Master sedang meracik Grand Final TOP 5 dari {len(semi_finalists)} saham Semi-Finalis..."):
                                     data_final = {}
                                     for ticker in semi_finalists:
                                         data_saham = df_hasil[df_hasil['Ticker'] == ticker].iloc[0]
@@ -1103,7 +1103,7 @@ if not df_hasil.empty:
                                             'pola_candle': data_saham.get('Pola Candle', 'Normal')
                                         }
                                         
-                                    hasil_grand_final = ai_grand_final_top10(data_final, GROQ_API_KEY)
+                                    hasil_grand_final = ai_grand_final_top5(data_final, GROQ_API_KEY)
                                     
                                     st.success("🎉 **TURNAMEN SELESAI!**")
                                     st.balloons()
