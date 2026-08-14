@@ -793,36 +793,36 @@ if not df_hasil.empty:
             st.warning("⏳ **Fitur Radar belum menerima data terbaru.** Harap jalankan 'update_data.py'.")
         else:
             # ===============================================
-            # KALKULASI RUMUS V1 - V5 (STRATEGI REVERSAL SMALL CAP)
+            # KALKULASI RUMUS 1 - 9 (STRATEGI HARGA 50-200)
             # ===============================================
-            cond_v1 = ((df_hasil['Kategori'] == 'Small Cap (Lapis 3)') & (df_hasil['Vol Breakout'] == 'Tembus MA20') & (df_hasil['Status Stochastic'] == 'Oversold (Jenuh Jual - Peluang)'))
+            # Kondisi Dasar: Harga wajib antara 50 sampai 200
+            cond_harga = (df_hasil.get('Harga (Rp)', 0) >= 50) & (df_hasil.get('Harga (Rp)', 0) <= 200)
+
+            cond_v1 = (cond_harga & (df_hasil.get('Vol Breakout', '') == 'Tembus MA20'))
             df_v1 = df_hasil[cond_v1].copy() if not df_hasil.empty else pd.DataFrame()
 
-            cond_v2 = ((df_hasil['Kategori'] == 'Small Cap (Lapis 3)') & (df_hasil['Vol Breakout'] == 'Tembus MA20') & (df_hasil['Fase Siklus Bandar'] == 'Accumulation (Kumpul Barang)') & (df_hasil['RVOL (Anomali Vol)'] == 'Normal (50-150%)') & (df_hasil['Tekanan Bandar'] == 'Seimbang / Adu Mekanik'))
+            cond_v2 = (cond_harga & (df_hasil.get('Status Stochastic', '') == 'Oversold (Jenuh Jual - Peluang)'))
             df_v2 = df_hasil[cond_v2].copy() if not df_hasil.empty else pd.DataFrame()
 
-            cond_v3 = ((df_hasil['Kategori'] == 'Small Cap (Lapis 3)') & (df_hasil['Vol Breakout'] == 'Tembus MA20') & (df_hasil['Posisi Entry'] == 'Dekat Support (Low Risk)') & (df_hasil['Status Stochastic'] == 'Oversold (Jenuh Jual - Peluang)'))
+            cond_v3 = (cond_harga & (df_hasil.get('Kondisi Supply', '') == 'Supply Kering (Siap Pump) 🏜️'))
             df_v3 = df_hasil[cond_v3].copy() if not df_hasil.empty else pd.DataFrame()
 
-            cond_v4 = ((df_hasil['Kategori'] == 'Small Cap (Lapis 3)') & (df_hasil['Vol Breakout'] == 'Tembus MA20') & (df_hasil['MA Signal'] == 'Downtrend') & (df_hasil['Momentum'] == 'Negatif') & (df_hasil['MA Cross'] == 'Bullish'))
+            cond_v4 = (cond_harga & (df_hasil.get('Status Fibonacci', '') == 'Golden Rebound Fibo 61.8% (Golden Ratio) 🎯'))
             df_v4 = df_hasil[cond_v4].copy() if not df_hasil.empty else pd.DataFrame()
 
-            cond_v5 = ((df_hasil['Kategori'] == 'Small Cap (Lapis 3)') & (df_hasil['Vol Breakout'] == 'Tembus MA20') & (df_hasil['Fase Siklus Bandar'] == 'Accumulation (Kumpul Barang)') & (df_hasil['RSI (14D)'] <= 50))
-            df_v5 = df_hasil[cond_v5].copy() if not df_hasil.empty and 'RSI (14D)' in df_hasil.columns else pd.DataFrame()
+            cond_v5 = (cond_harga & (df_hasil.get('Prediksi Machine Learning', '') == '🔥 ANOMALI BANDAR (Siap Ledakan)'))
+            df_v5 = df_hasil[cond_v5].copy() if not df_hasil.empty else pd.DataFrame()
 
-            # ===============================================
-            # TAMBAHAN RUMUS 6, 7, 8 (KOMBINASI SUPPLY & SENTIMEN)
-            # ===============================================
-            cond_v6 = ((df_hasil['Kategori'] == 'Small Cap (Lapis 3)') & (df_hasil['Tekanan Bandar'] == 'Dominan Beli (Hajar Kanan)') & (df_hasil.get('Kondisi Supply', '') == 'Supply Kering (Siap Pump) 🏜️') & (df_hasil.get('Status Stochastic', '') == 'Oversold (Jenuh Jual - Peluang)'))
+            cond_v6 = (cond_harga & (df_hasil.get('Posisi Entry', '') == 'Dekat Support (Low Risk)'))
             df_v6 = df_hasil[cond_v6].copy() if not df_hasil.empty else pd.DataFrame()
 
-            cond_v7 = ((df_hasil['Kategori'] == 'Small Cap (Lapis 3)') & (df_hasil.get('Kondisi Supply', '') == 'Supply Kering (Siap Pump) 🏜️') & (df_hasil['Tekanan Bandar'] == 'Dominan Beli (Hajar Kanan)') & (df_hasil.get('Status Stochastic', '') == 'Golden Cross (Awal Bullish)'))
+            cond_v7 = (cond_harga & (df_hasil.get('Kekuatan A/D', '') == 'Akumulasi Pro (Smart Money)'))
             df_v7 = df_hasil[cond_v7].copy() if not df_hasil.empty else pd.DataFrame()
 
-            cond_v8 = ((df_hasil['Kategori'] == 'Small Cap (Lapis 3)') & (df_hasil.get('Kondisi Supply', '') == 'Supply Kering (Siap Pump) 🏜️') & (df_hasil['OBV Trend'] == 'Akumulasi (Naik)') & (df_hasil['Pola Candle'] == 'Doji (Ragu-ragu)') & (df_hasil.get('Status Sentimen', '') == 'Sentimen Positif 📰'))
+            cond_v8 = (cond_harga & (df_hasil.get('Fase Siklus Bandar', '') == 'Accumulation (Kumpul Barang)'))
             df_v8 = df_hasil[cond_v8].copy() if not df_hasil.empty else pd.DataFrame()
 
-            cond_v9 = ((df_hasil['Kategori'] == 'Small Cap (Lapis 3)') & (df_hasil['Tekanan Bandar'] == 'Dominan Beli (Hajar Kanan)') & (df_hasil['Kekuatan A/D'] == 'Akumulasi Pro (Smart Money)') & (df_hasil.get('Kondisi Supply', '') == 'Supply Kering (Siap Pump) 🏜️'))
+            cond_v9 = (cond_harga & (df_hasil.get('Valuasi', '') == 'Undervalued (Murah)'))
             df_v9 = df_hasil[cond_v9].copy() if not df_hasil.empty else pd.DataFrame()
 
             # MEMBAGI MENJADI 2 TAB UTAMA YANG RAPI
@@ -835,15 +835,15 @@ if not df_hasil.empty:
                 pilihan_v = st.selectbox(
                     "Pilih Rumus Screener:",
                     [
-                        "Rumus 1 (Small Cap + Tembus MA20 + Oversold)", 
-                        "Rumus 2 (Small Cap + Tembus MA20 + Akumulasi Vol Normal)", 
-                        "Rumus 3 (Small Cap + Tembus MA20 + Support Oversold)", 
-                        "Rumus 4 (Small Cap + Tembus MA20 + Bottom Fishing Bullish)", 
-                        "Rumus 5 (Small Cap + Tembus MA20 + Akumulasi RSI Bearish)",
-                        "Rumus 6 (Small Cap + Hajar Kanan + Supply Kering + Oversold)",
-                        "Rumus 7 (Small Cap + Hajar Kanan + Supply Kering + Golden Cross)",
-                        "Rumus 8 (Small Cap + Supply Kering + OBV Naik + Doji + Sentimen Positif)",
-                        "Rumus 9 🌙 (BSJP Siluman: Hajar Kanan + Smart Money + Supply Kering)"
+                        "Rumus 1 (Harga 50-200 + Tembus MA20)", 
+                        "Rumus 2 (Harga 50-200 + Oversold)", 
+                        "Rumus 3 (Harga 50-200 + Supply Kering)", 
+                        "Rumus 4 (Harga 50-200 + Golden Fibo 61.8%)", 
+                        "Rumus 5 (Harga 50-200 + Anomali Bandar)",
+                        "Rumus 6 (Harga 50-200 + Dekat Support)",
+                        "Rumus 7 (Harga 50-200 + Akumulasi Pro)",
+                        "Rumus 8 (Harga 50-200 + Accumulation Wyckoff)",
+                        "Rumus 9 (Harga 50-200 + Undervalued)"
                     ]
                 )
                 
@@ -865,8 +865,7 @@ if not df_hasil.empty:
                 elif "Rumus 8" in pilihan_v:
                     render_strategy_table(df_v8, "Screener_Rumus_8")
                 elif "Rumus 9" in pilihan_v:
-                    st.success("💡 **Logika Rumus 9 (Eksekusi 15:40 - 15:55):** Bandar agresif hajar kanan dan uang institusi masuk (Smart Money), tetapi harga dan volume sengaja ditahan (Supply Kering) agar ritel tidak sadar. Ini adalah setup sempurna untuk potensi GAP UP besok pagi!")
-                    render_strategy_table(df_v9, "Screener_Rumus_9_BSJP")
+                    render_strategy_table(df_v9, "Screener_Rumus_9")
 
             # ===============================================
             # AREA KECERDASAN BUATAN (AI)
