@@ -14,6 +14,77 @@ from groq import Groq
 from dotenv import load_dotenv
 
 # ==========================================
+# 🧠 SISTEM ARSIP CERDAS: GPS & PEMERAS DATA
+# ==========================================
+def ekstrak_sari_pati_arsip(daftar_ticker_terpilih, df_utama):
+    """
+    Fungsi ini mencari lokasi file arsip berdasarkan harga saham (GPS),
+    lalu memeras ribuan baris data 5-menitan menjadi teks pendek untuk AI.
+    """
+    base_folder = "Arsip_Data_Saham"
+    hasil_perasan_ai = {}
+
+    for ticker in daftar_ticker_terpilih:
+        # --- 1. SISTEM GPS (Mencari Lokasi Folder) ---
+        try:
+            # Mengambil harga acuan dari DataFrame utama web Anda
+            harga = df_utama[df_utama['Ticker'] == ticker]['Harga (Rp)'].values[0]
+        except:
+            harga = 0
+
+        # Penentuan Kamar (Folder)
+        if 1 <= harga <= 200:
+            nama_folder = "Kelas_1_Gorengan_50_200"
+        elif 201 <= harga <= 1000:
+            nama_folder = "Kelas_2_Midcap_201_1000"
+        else:
+            nama_folder = "Kelas_3_Bluechip_1001_Plus"
+
+        # Membentuk rute persis di dalam Codespaces Anda
+        jalur_file = os.path.join(base_folder, nama_folder, f"{ticker}_arsip.csv")
+
+        # --- 2. MESIN PEMERAS SARI PATI ---
+        if os.path.exists(jalur_file):
+            try:
+                # Membaca data arsip 5-menitan
+                df_arsip = pd.read_csv(jalur_file)
+                
+                # Memastikan format waktu terbaca
+                df_arsip['Waktu'] = pd.to_datetime(df_arsip['Waktu'])
+                
+                # BATES WAKTU EMAS: Potong ketat di jam 17:30
+                batas_waktu = pd.to_datetime('17:30').time()
+                df_arsip = df_arsip[df_arsip['Waktu'].dt.time <= batas_waktu]
+
+                if not df_arsip.empty:
+                    # Mengambil intisari pergerakan
+                    harga_pagi = df_arsip['Harga'].iloc[0]
+                    harga_sore = df_arsip['Harga'].iloc[-1]
+                    total_vol = df_arsip['Volume'].sum()
+                    
+                    # Mencari jejak "Paus" (Ledakan volume terbesar di jam berapa?)
+                    idx_ledakan = df_arsip['Volume'].idxmax()
+                    jam_ledakan = df_arsip.loc[idx_ledakan, 'Waktu'].strftime('%H:%M')
+                    vol_ledakan = df_arsip.loc[idx_ledakan, 'Volume']
+
+                    status = "Uptrend" if harga_sore > harga_pagi else ("Downtrend" if harga_sore < harga_pagi else "Sideways")
+
+                    # Merakit 1 kalimat super padat (Token AI sangat hemat!)
+                    sari_pati = (
+                        f"Tren {status} (Rp {harga_pagi} ke Rp {harga_sore}). "
+                        f"Akumulasi agresif terdeteksi pada pukul {jam_ledakan} dengan guyuran volume {vol_ledakan} lot."
+                    )
+                    hasil_perasan_ai[ticker] = sari_pati
+                else:
+                    hasil_perasan_ai[ticker] = "Data transaksi kosong sebelum pukul 17:30."
+            except Exception as e:
+                hasil_perasan_ai[ticker] = f"Error kompresi data: {e}"
+        else:
+            hasil_perasan_ai[ticker] = "Arsip 5-menit belum terbentuk."
+
+    return hasil_perasan_ai
+
+# ==========================================
 # SECTION 1: PENGATURAN UI/UX & API
 # ==========================================
 st.set_page_config(page_title="Screener Saham IHSG", layout="wide", initial_sidebar_state="expanded")
@@ -1116,3 +1187,95 @@ if not df_hasil.empty:
                                     st.session_state.radar_aktif = False
                                     if st.button("🔄 Mulai Turnamen Baru"):
                                         st.rerun()
+
+                    # ===============================================
+            # AREA ASISTEN AI (MEMBACA SARI PATI ARSIP 5-MENIT)
+            # ===============================================
+            with tab_ai:
+                st.markdown("### 🤖 Analisis AI Spesial (Gorengan 50-200)")
+                st.info("AI akan membaca rangkuman pergerakan 5-menitan dari folder arsip untuk mencari jejak akumulasi bandar (Golden Time).")
+                
+                pilih_rumus_ai = st.selectbox(
+                    "Pilih Rumus yang akan dianalisis oleh AI:",
+                    [
+                        "Rumus 1 (Harga 50-200 + Tembus MA20)", 
+                        "Rumus 2 (Harga 50-200 + Oversold)", 
+                        "Rumus 3 (Harga 50-200 + Supply Kering)", 
+                        "Rumus 4 (Harga 50-200 + Golden Fibo 61.8%)", 
+                        "Rumus 5 (Harga 50-200 + Anomali Bandar)",
+                        "Rumus 6 (Harga 50-200 + Dekat Support)",
+                        "Rumus 7 (Harga 50-200 + Akumulasi Pro)",
+                        "Rumus 8 (Harga 50-200 + Accumulation Wyckoff)",
+                        "Rumus 9 (Harga 50-200 + Undervalued)"
+                    ], key="pilihan_ai_spesial"
+                )
+                
+                if st.button("🔥 Minta AI Pilih Saham Pom-Pom Besok"):
+                    GROQ_API_KEY = st.secrets.get("GROQ_API_KEY", None)
+                    if not GROQ_API_KEY:
+                        st.error("Kunci API Groq belum dipasang!")
+                    else:
+                        # 1. Tentukan Dataframe berdasarkan pilihan dropdown
+                        df_target = pd.DataFrame()
+                        if "Rumus 1" in pilih_rumus_ai: df_target = df_v1
+                        elif "Rumus 2" in pilih_rumus_ai: df_target = df_v2
+                        elif "Rumus 3" in pilih_rumus_ai: df_target = df_v3
+                        elif "Rumus 4" in pilih_rumus_ai: df_target = df_v4
+                        elif "Rumus 5" in pilih_rumus_ai: df_target = df_v5
+                        elif "Rumus 6" in pilih_rumus_ai: df_target = df_v6
+                        elif "Rumus 7" in pilih_rumus_ai: df_target = df_v7
+                        elif "Rumus 8" in pilih_rumus_ai: df_target = df_v8
+                        elif "Rumus 9" in pilih_rumus_ai: df_target = df_v9
+                        
+                        if df_target.empty:
+                            st.warning("⚠️ Belum ada saham yang lolos di rumus ini hari ini.")
+                        else:
+                            daftar_ticker = df_target['Ticker'].tolist()
+                            st.success(f"Ditemukan {len(daftar_ticker)} saham. Memulai kompresi data arsip...")
+                            
+                            with st.spinner("Mengirim detektif GPS ke dalam folder kelas & memeras data 5-menitan..."):
+                                # 2. Panggil Sistem GPS & Pemeras Sari Pati!
+                                data_sejarah_ai = ekstrak_sari_pati_arsip(daftar_ticker, df_hasil)
+                                
+                                # 3. Rakit Payload yang sudah sangat ringan (Hemat Token)
+                                payload_text = ""
+                                for idx, row in df_target.iterrows():
+                                    tkr = row['Ticker']
+                                    payload_text += f"\n--- {tkr} ---\n"
+                                    payload_text += f"Harga: {row.get('Harga (Rp)', 0)} | Vol: {row.get('Volume', 0)}\n"
+                                    payload_text += f"Broksum: {row.get('Broksum', 'Normal')} | Supply: {row.get('Kondisi Supply', 'Normal')}\n"
+                                    # Ini keajaibannya: Memasukkan sejarah 5-menit yang sudah diperas
+                                    payload_text += f"Jejak Historis Hari Ini: {data_sejarah_ai.get(tkr, 'Tidak ada data')}\n"
+                                
+                                # 4. Prompt AI Sangat Tajam
+                                prompt_pom_pom = f"""
+                                You are a highly skilled Indonesian Stock Analyst specializing in Low-Cap (Gorengan) stocks.
+                                I have given you {len(daftar_ticker)} stocks filtered by {pilih_rumus_ai}.
+                                
+                                DATA SARI PATI:
+                                {payload_text}
+                                
+                                YOUR MISSION:
+                                1. Analyze the "Jejak Historis Hari Ini" (which summarizes the 5-min timeframe action until 17:30).
+                                2. Pick the TOP 2 or TOP 3 stocks that have the highest probability of Gap Up / ARA tomorrow morning. Look for late-session stealth accumulation or explosive volume spikes.
+                                3. Write your response entirely in INDONESIAN.
+                                4. Output a Markdown Table: [Peringkat, Ticker, Waktu Ledakan, Alasan Pom-Pom]
+                                5. Give a highly aggressive Day Trading plan (Buy Area, Sell Target, Cut Loss).
+                                """
+                                
+                                # 5. Panggil API (Gunakan model instant agar limit harian aman)
+                                try:
+                                    client = Groq(api_key=GROQ_API_KEY)
+                                    completion = client.chat.completions.create(
+                                        model="llama-3.1-8b-instant",
+                                        messages=[{"role": "user", "content": prompt_pom_pom}],
+                                        temperature=0.4, max_tokens=1500, top_p=1, stream=False
+                                    )
+                                    
+                                    # Tampilkan Hasil dengan rapi
+                                    with st.container():
+                                        st.markdown("---")
+                                        st.markdown(completion.choices[0].message.content)
+                                        st.markdown("---")
+                                except Exception as e:
+                                    st.error(f"❌ Server AI mengalami kendala: {e}")                    
