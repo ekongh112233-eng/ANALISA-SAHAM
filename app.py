@@ -1257,7 +1257,7 @@ if not df_hasil.empty:
                                 
                                 YOUR MISSION:
                                 1. Analyze the "Jejak Historis Hari Ini" (which summarizes the 5-min timeframe action until 17:30).
-                                2. Pick the TOP 2 or TOP 3 stocks that have the highest probability of Gap Up / ARA tomorrow morning. Look for late-session stealth accumulation or explosive volume spikes.
+                                2. Pick EXACTLY the TOP 5 stocks that have the highest probability of Gap Up / ARA tomorrow morning. Look for late-session stealth accumulation or explosive volume spikes. (If there are less than 5 good stocks, just list whatever is available).
                                 3. Write your response entirely in INDONESIAN.
                                 4. Output a Markdown Table: [Peringkat, Ticker, Waktu Ledakan, Alasan Pom-Pom]
                                 5. Give a highly aggressive Day Trading plan (Buy Area, Sell Target, Cut Loss).
