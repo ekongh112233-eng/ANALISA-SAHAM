@@ -1196,13 +1196,12 @@ if not df_hasil.empty:
                                         st.rerun()
 
             # ===============================================
-            # AREA ASISTEN AI (MEMBACA SARI PATI ARSIP 5-MENIT)
+            # AREA ASISTEN AI (SISTEM TURNAMEN VVIP)
             # ===============================================
             with tab_ai:
-                st.markdown("### 🤖 Analisis AI Spesial (Gorengan 50-200)")
-                st.info("AI akan membaca rangkuman pergerakan 5-menitan dari folder arsip untuk mencari jejak akumulasi bandar (Golden Time).")
+                st.markdown("### 🤖 Analisis AI Spesial (Sistem Turnamen & Auto-Trade)")
+                st.info("AI akan mengadu saham yang lolos rumus dalam babak penyisihan (5 saham/ronde) sebelum masuk ke Grand Final untuk dieksekusi Bot.")
                 
-                # Ini adalah Dropdown Versi Baru (Rumus 1-9)
                 pilih_rumus_ai = st.selectbox(
                     "Pilih Rumus yang akan dianalisis oleh AI:",
                     [
@@ -1218,13 +1217,15 @@ if not df_hasil.empty:
                     ], key="pilihan_ai_spesial"
                 )
                 
-                # Ini adalah Tombol Eksekusi Baru yang Anda cari
-                if st.button("🔥 Minta AI Pilih Saham Pom-Pom Besok"):
+                if st.button("🔥 Mulai Turnamen AI & Pom-Pom Besok"):
                     GROQ_API_KEY = st.secrets.get("GROQ_API_KEY", None)
                     if not GROQ_API_KEY:
                         st.error("Kunci API Groq belum dipasang!")
                     else:
-                        # 1. Tentukan Dataframe berdasarkan pilihan dropdown
+                        import time
+                        import json
+                        
+                        # 1. Ambil Dataframe
                         df_target = pd.DataFrame()
                         if "Rumus 1" in pilih_rumus_ai: df_target = df_v1
                         elif "Rumus 2" in pilih_rumus_ai: df_target = df_v2
@@ -1240,74 +1241,132 @@ if not df_hasil.empty:
                             st.warning("⚠️ Belum ada saham yang lolos di rumus ini hari ini.")
                         else:
                             daftar_ticker = df_target['Ticker'].tolist()
-                            st.success(f"Ditemukan {len(daftar_ticker)} saham. Memulai kompresi data arsip...")
+                            st.success(f"Ditemukan {len(daftar_ticker)} saham. Memulai ekstraksi data historis...")
                             
-                            with st.spinner("Mengirim detektif GPS ke dalam folder kelas & memeras data 5-menitan..."):
-                                # 2. Panggil Sistem GPS & Pemeras Sari Pati!
-                                data_sejarah_ai = ekstrak_sari_pati_arsip(daftar_ticker, df_hasil)
+                            # Ekstrak Sari Pati Arsip untuk semua saham terlebih dahulu
+                            data_sejarah_ai = ekstrak_sari_pati_arsip(daftar_ticker, df_hasil)
+                            
+                            client = Groq(api_key=GROQ_API_KEY)
+                            finalis = []
+                            
+                            # Jika saham sedikit (<= 5), langsung Grand Final. Jika banyak, adakan penyisihan.
+                            if len(daftar_ticker) <= 5:
+                                st.info("Jumlah kandidat sedikit. Langsung menuju Grand Final!")
+                                finalis = daftar_ticker
+                            else:
+                                st.markdown("#### ⚔️ Babak Penyisihan Dimulai")
+                                progress_bar = st.progress(0)
                                 
-                                # 3. Rakit Payload yang sudah sangat ringan (Hemat Token)
-                                payload_text = ""
-                                for idx, row in df_target.iterrows():
-                                    tkr = row['Ticker']
-                                    payload_text += f"\n--- {tkr} ---\n"
-                                    payload_text += f"Harga: {row.get('Harga (Rp)', 0)} | Vol: {row.get('Volume', 0)}\n"
-                                    payload_text += f"Broksum: {row.get('Broksum', 'Normal')} | Supply: {row.get('Kondisi Supply', 'Normal')}\n"
-                                    payload_text += f"Jejak Historis Hari Ini: {data_sejarah_ai.get(tkr, 'Tidak ada data')}\n"
+                                # Pecah menjadi grup-grup kecil (5 saham per grup)
+                                chunk_size = 5
+                                chunks = [daftar_ticker[i:i + chunk_size] for i in range(0, len(daftar_ticker), chunk_size)]
                                 
-                                # 4. Prompt AI Khusus Bot (Wajib JSON)
-                                prompt_pom_pom = f"""
-                                You are a highly skilled Indonesian Stock Analyst specializing in Low-Cap (Gorengan) stocks.
-                                I have given you {len(daftar_ticker)} stocks filtered by {pilih_rumus_ai}.
+                                for i, chunk in enumerate(chunks):
+                                    st.write(f"Menganalisis Grup {i+1} dari {len(chunks)} ({', '.join(chunk)})...")
+                                    
+                                    # Rakit payload per grup
+                                    payload_grup = ""
+                                    for tkr in chunk:
+                                        row_data = df_target[df_target['Ticker'] == tkr].iloc[0]
+                                        payload_grup += f"\n--- {tkr} ---\n"
+                                        payload_grup += f"Harga: {row_data.get('Harga (Rp)', 0)} | Vol: {row_data.get('Volume', 0)}\n"
+                                        payload_grup += f"Broksum: {row_data.get('Broksum', 'Normal')} | Supply: {row_data.get('Kondisi Supply', 'Normal')}\n"
+                                        payload_grup += f"Jejak Historis: {data_sejarah_ai.get(tkr, 'Tidak ada data')}\n"
+                                        
+                                    prompt_penyisihan = f"""
+                                    Dari daftar saham berikut:
+                                    {payload_grup}
+                                    
+                                    Pilih MAKSIMAL 2 SAHAM TERBAIK yang memiliki jejak akumulasi paling kuat untuk Day Trading besok.
+                                    Balas HANYA dengan Ticker saham yang lolos, pisahkan dengan koma. Jangan ada teks lain.
+                                    Contoh balasan: VISI, PANI
+                                    Jika tidak ada yang bagus, balas: KOSONG
+                                    """
+                                    
+                                    try:
+                                        res = client.chat.completions.create(
+                                            model="llama-3.1-8b-instant",
+                                            messages=[{"role": "user", "content": prompt_penyisihan}],
+                                            temperature=0.2, max_tokens=50
+                                        )
+                                        jawaban = res.choices[0].message.content.strip().upper()
+                                        if jawaban != "KOSONG":
+                                            lolos = [x.strip() for x in jawaban.split(',') if x.strip() in chunk]
+                                            finalis.extend(lolos)
+                                            st.write(f"➡️ Lolos ke Final: **{', '.join(lolos)}**")
+                                        else:
+                                            st.write("➡️ Tidak ada yang lolos dari grup ini.")
+                                    except:
+                                        st.write("➡️ Error API pada grup ini, dilewati.")
+                                        
+                                    progress_bar.progress((i + 1) / len(chunks))
+                                    time.sleep(1.5) # Jeda agar API Groq tidak kena limit
+                                    
+                            # ==========================================
+                            # GRAND FINAL
+                            # ==========================================
+                            st.markdown("#### 🏆 Grand Final (Mencetak Sinyal Auto-Trade)")
+                            if not finalis:
+                                st.warning("Tidak ada saham yang lolos ke Grand Final. Pasar mungkin sedang buruk.")
+                            else:
+                                st.write(f"Kandidat Final: {', '.join(finalis)}")
                                 
-                                DATA SARI PATI:
-                                {payload_text}
+                                payload_final = ""
+                                for tkr in finalis:
+                                    try:
+                                        row_data = df_target[df_target['Ticker'] == tkr].iloc[0]
+                                        payload_final += f"\n--- {tkr} ---\n"
+                                        payload_final += f"Harga: {row_data.get('Harga (Rp)', 0)} | Vol: {row_data.get('Volume', 0)}\n"
+                                        payload_final += f"Broksum: {row_data.get('Broksum', 'Normal')} | Supply: {row_data.get('Kondisi Supply', 'Normal')}\n"
+                                        payload_final += f"Jejak Historis: {data_sejarah_ai.get(tkr, 'Tidak ada data')}\n"
+                                    except:
+                                        pass
+                                        
+                                prompt_final = f"""
+                                You are an Elite Indonesian Stock Analyst.
+                                You have {len(finalis)} finalists:
+                                {payload_final}
                                 
                                 YOUR MISSION:
-                                1. Analyze the "Jejak Historis Hari Ini".
-                                2. Pick EXACTLY the TOP 5 stocks with the highest probability of Gap Up / ARA tomorrow morning.
-                                3. Determine a Day Trading plan. Target_TP and Target_CL MUST be integer numbers (no text, no commas).
-                                4. You MUST output ONLY a valid JSON array of objects. Do not write any markdown formatting, do not explain anything, just output the raw JSON array.
+                                1. Pick EXACTLY the TOP 5 stocks with the highest probability of Gap Up / ARA tomorrow (If less than 5, pick all available).
+                                2. Determine Target_TP and Target_CL. They MUST be integer numbers.
+                                3. You MUST output ONLY a valid JSON array of objects.
                                 
                                 Format exactly like this example:
                                 [
-                                  {{"Peringkat": 1, "Ticker": "GOTO", "Alasan": "Akumulasi agresif di akhir sesi", "Target_TP": 60, "Target_CL": 50}},
+                                  {{"Peringkat": 1, "Ticker": "GOTO", "Alasan": "Akumulasi siluman sore hari", "Target_TP": 60, "Target_CL": 50}},
                                   {{"Peringkat": 2, "Ticker": "PANI", "Alasan": "Ledakan volume ekstrem", "Target_TP": 5500, "Target_CL": 5100}}
                                 ]
                                 """
                                 
-                                # 5. Panggil API & Ekspor ke File
-                                try:
-                                    import json
-                                    from groq import Groq
-                                    
-                                    client = Groq(api_key=GROQ_API_KEY)
-                                    completion = client.chat.completions.create(
-                                        model="llama-3.1-8b-instant",
-                                        messages=[{"role": "user", "content": prompt_pom_pom}],
-                                        temperature=0.3, max_tokens=1000, top_p=1, stream=False
-                                    )
-                                    
-                                    jawaban_raw = completion.choices[0].message.content
-                                    bersih = jawaban_raw.replace('```json', '').replace('```', '').strip()
-                                    
-                                    hasil_json = json.loads(bersih)
-                                    df_tampil = pd.DataFrame(hasil_json)
-                                    
-                                    with st.container():
-                                        st.markdown("---")
-                                        st.success("🎉 **Rekomendasi Pom-Pom Berhasil Diekstrak!**")
-                                        st.table(df_tampil)
-                                        st.markdown("---")
+                                with st.spinner("AI sedang menyusun strategi JSON untuk Bot..."):
+                                    try:
+                                        res_final = client.chat.completions.create(
+                                            model="llama-3.1-8b-instant",
+                                            messages=[{"role": "user", "content": prompt_final}],
+                                            temperature=0.3, max_tokens=1000
+                                        )
                                         
-                                    # 6. EXPORT SINYAL KE BOT SIMULATOR
-                                    df_sinyal = df_tampil[['Ticker', 'Target_TP', 'Target_CL']]
-                                    df_sinyal.to_csv("sinyal_ai.csv", index=False)
-                                    st.info("🤖 **Sinyal berhasil dikirim ke Bot Auto-Trading!** Bot akan mengeksekusi pembelian secara otomatis.")
-                                    
-                                except Exception as e:
-                                    st.error("❌ Server AI membalas dengan format yang tidak sesuai. Silakan coba lagi.")
-                                    st.code(jawaban_raw)
+                                        jawaban_raw = res_final.choices[0].message.content
+                                        bersih = jawaban_raw.replace('```json', '').replace('```', '').strip()
+                                        
+                                        hasil_json = json.loads(bersih)
+                                        df_tampil = pd.DataFrame(hasil_json)
+                                        
+                                        with st.container():
+                                            st.markdown("---")
+                                            st.success("🎉 **Grand Final Selesai! Sinyal Berhasil Dicetak!**")
+                                            st.table(df_tampil)
+                                            st.markdown("---")
+                                            
+                                        # EXPORT SINYAL KE BOT SIMULATOR
+                                        df_sinyal = df_tampil[['Ticker', 'Target_TP', 'Target_CL']]
+                                        df_sinyal.to_csv("sinyal_ai.csv", index=False)
+                                        st.info("🤖 **Sinyal berhasil dikirim ke Bot Auto-Trading!** Bot akan mengeksekusi pembelian secara otomatis pada putaran berikutnya.")
+                                        
+                                    except Exception as e:
+                                        st.error("❌ Terjadi kesalahan saat mencetak sinyal JSON di Grand Final.")
+                                        st.code(jawaban_raw)
                                 
                                 # 5. Panggil API (Gunakan model instant agar limit harian aman)
                                 try:
