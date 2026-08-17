@@ -1202,6 +1202,7 @@ if not df_hasil.empty:
                 st.markdown("### 🤖 Analisis AI Spesial (Gorengan 50-200)")
                 st.info("AI akan membaca rangkuman pergerakan 5-menitan dari folder arsip untuk mencari jejak akumulasi bandar (Golden Time).")
                 
+                # Ini adalah Dropdown Versi Baru (Rumus 1-9)
                 pilih_rumus_ai = st.selectbox(
                     "Pilih Rumus yang akan dianalisis oleh AI:",
                     [
@@ -1217,6 +1218,7 @@ if not df_hasil.empty:
                     ], key="pilihan_ai_spesial"
                 )
                 
+                # Ini adalah Tombol Eksekusi Baru yang Anda cari
                 if st.button("🔥 Minta AI Pilih Saham Pom-Pom Besok"):
                     GROQ_API_KEY = st.secrets.get("GROQ_API_KEY", None)
                     if not GROQ_API_KEY:
@@ -1251,10 +1253,9 @@ if not df_hasil.empty:
                                     payload_text += f"\n--- {tkr} ---\n"
                                     payload_text += f"Harga: {row.get('Harga (Rp)', 0)} | Vol: {row.get('Volume', 0)}\n"
                                     payload_text += f"Broksum: {row.get('Broksum', 'Normal')} | Supply: {row.get('Kondisi Supply', 'Normal')}\n"
-                                    # Ini keajaibannya: Memasukkan sejarah 5-menit yang sudah diperas
                                     payload_text += f"Jejak Historis Hari Ini: {data_sejarah_ai.get(tkr, 'Tidak ada data')}\n"
                                 
-                                # 4. Prompt AI (DIUBAH UNTUK MEMAKSA KELUARAN JSON)
+                                # 4. Prompt AI Khusus Bot (Wajib JSON)
                                 prompt_pom_pom = f"""
                                 You are a highly skilled Indonesian Stock Analyst specializing in Low-Cap (Gorengan) stocks.
                                 I have given you {len(daftar_ticker)} stocks filtered by {pilih_rumus_ai}.
@@ -1278,6 +1279,7 @@ if not df_hasil.empty:
                                 # 5. Panggil API & Ekspor ke File
                                 try:
                                     import json
+                                    from groq import Groq
                                     
                                     client = Groq(api_key=GROQ_API_KEY)
                                     completion = client.chat.completions.create(
@@ -1287,15 +1289,11 @@ if not df_hasil.empty:
                                     )
                                     
                                     jawaban_raw = completion.choices[0].message.content
-                                    
-                                    # Membersihkan tag markdown ```json jika AI membandel
                                     bersih = jawaban_raw.replace('```json', '').replace('```', '').strip()
                                     
-                                    # Menerjemahkan teks AI menjadi tabel data
                                     hasil_json = json.loads(bersih)
                                     df_tampil = pd.DataFrame(hasil_json)
                                     
-                                    # Tampilkan ke layar Web
                                     with st.container():
                                         st.markdown("---")
                                         st.success("🎉 **Rekomendasi Pom-Pom Berhasil Diekstrak!**")
