@@ -714,7 +714,14 @@ def render_strategy_table(df_subset, file_name):
 # SECTION 6: RENDER TABS
 # ==========================================
 if not df_hasil.empty:
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Ringkasan Pasar", "🎯 Screener Utama", "💡 Insight & Edukasi", "📈 Simulasi & Strategi", "🦅 Radar BSJP & AI"])
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    "📈 Market Overview", 
+    "🎯 Screener Utama", 
+    "🔎 Cek Saham Spesifik", 
+    "🚨 Radar Bandar", 
+    "🤖 Screener Spesial", 
+    "📊 Portofolio AI"
+])
     
     with tab1:
         total = len(df_hasil)
@@ -1188,7 +1195,7 @@ if not df_hasil.empty:
                                     if st.button("🔄 Mulai Turnamen Baru"):
                                         st.rerun()
 
-                    # ===============================================
+            # ===============================================
             # AREA ASISTEN AI (MEMBACA SARI PATI ARSIP 5-MENIT)
             # ===============================================
             with tab_ai:
@@ -1247,7 +1254,7 @@ if not df_hasil.empty:
                                     # Ini keajaibannya: Memasukkan sejarah 5-menit yang sudah diperas
                                     payload_text += f"Jejak Historis Hari Ini: {data_sejarah_ai.get(tkr, 'Tidak ada data')}\n"
                                 
-                                # 4. Prompt AI Sangat Tajam
+                                # 4. Prompt AI (DIUBAH UNTUK MEMAKSA KELUARAN JSON)
                                 prompt_pom_pom = f"""
                                 You are a highly skilled Indonesian Stock Analyst specializing in Low-Cap (Gorengan) stocks.
                                 I have given you {len(daftar_ticker)} stocks filtered by {pilih_rumus_ai}.
@@ -1256,12 +1263,53 @@ if not df_hasil.empty:
                                 {payload_text}
                                 
                                 YOUR MISSION:
-                                1. Analyze the "Jejak Historis Hari Ini" (which summarizes the 5-min timeframe action until 17:30).
-                                2. Pick EXACTLY the TOP 5 stocks that have the highest probability of Gap Up / ARA tomorrow morning. Look for late-session stealth accumulation or explosive volume spikes. (If there are less than 5 good stocks, just list whatever is available).
-                                3. Write your response entirely in INDONESIAN.
-                                4. Output a Markdown Table: [Peringkat, Ticker, Waktu Ledakan, Alasan Pom-Pom]
-                                5. Give a highly aggressive Day Trading plan (Buy Area, Sell Target, Cut Loss).
+                                1. Analyze the "Jejak Historis Hari Ini".
+                                2. Pick EXACTLY the TOP 5 stocks with the highest probability of Gap Up / ARA tomorrow morning.
+                                3. Determine a Day Trading plan. Target_TP and Target_CL MUST be integer numbers (no text, no commas).
+                                4. You MUST output ONLY a valid JSON array of objects. Do not write any markdown formatting, do not explain anything, just output the raw JSON array.
+                                
+                                Format exactly like this example:
+                                [
+                                  {{"Peringkat": 1, "Ticker": "GOTO", "Alasan": "Akumulasi agresif di akhir sesi", "Target_TP": 60, "Target_CL": 50}},
+                                  {{"Peringkat": 2, "Ticker": "PANI", "Alasan": "Ledakan volume ekstrem", "Target_TP": 5500, "Target_CL": 5100}}
+                                ]
                                 """
+                                
+                                # 5. Panggil API & Ekspor ke File
+                                try:
+                                    import json
+                                    
+                                    client = Groq(api_key=GROQ_API_KEY)
+                                    completion = client.chat.completions.create(
+                                        model="llama-3.1-8b-instant",
+                                        messages=[{"role": "user", "content": prompt_pom_pom}],
+                                        temperature=0.3, max_tokens=1000, top_p=1, stream=False
+                                    )
+                                    
+                                    jawaban_raw = completion.choices[0].message.content
+                                    
+                                    # Membersihkan tag markdown ```json jika AI membandel
+                                    bersih = jawaban_raw.replace('```json', '').replace('```', '').strip()
+                                    
+                                    # Menerjemahkan teks AI menjadi tabel data
+                                    hasil_json = json.loads(bersih)
+                                    df_tampil = pd.DataFrame(hasil_json)
+                                    
+                                    # Tampilkan ke layar Web
+                                    with st.container():
+                                        st.markdown("---")
+                                        st.success("🎉 **Rekomendasi Pom-Pom Berhasil Diekstrak!**")
+                                        st.table(df_tampil)
+                                        st.markdown("---")
+                                        
+                                    # 6. EXPORT SINYAL KE BOT SIMULATOR
+                                    df_sinyal = df_tampil[['Ticker', 'Target_TP', 'Target_CL']]
+                                    df_sinyal.to_csv("sinyal_ai.csv", index=False)
+                                    st.info("🤖 **Sinyal berhasil dikirim ke Bot Auto-Trading!** Bot akan mengeksekusi pembelian secara otomatis.")
+                                    
+                                except Exception as e:
+                                    st.error("❌ Server AI membalas dengan format yang tidak sesuai. Silakan coba lagi.")
+                                    st.code(jawaban_raw)
                                 
                                 # 5. Panggil API (Gunakan model instant agar limit harian aman)
                                 try:
@@ -1278,4 +1326,92 @@ if not df_hasil.empty:
                                         st.markdown(completion.choices[0].message.content)
                                         st.markdown("---")
                                 except Exception as e:
-                                    st.error(f"❌ Server AI mengalami kendala: {e}")                    
+                                    st.error(f"❌ Server AI mengalami kendala: {e}")
+
+        # ===============================================
+        # TAB 6: DASHBOARD PORTOFOLIO SIMULASI AI
+        # ===============================================
+        with tab6:
+            st.markdown("## 📊 Dashboard Simulasi Auto-Trading")
+            st.markdown("Pantau performa eksekusi bot secara real-time. Semua transaksi menggunakan potongan *fee* bursa asli (Beli 0.15%, Jual 0.25%).")
+            st.markdown("---")
+
+            # 1. BACA DATA DARI DATABASE VIRTUAL
+            FILE_PORTO = "portofolio_virtual.csv"
+            FILE_HIST = "history_trade.csv"
+            MODAL_AWAL = 100000000.0
+
+            df_porto = pd.read_csv(FILE_PORTO) if os.path.exists(FILE_PORTO) else pd.DataFrame()
+            df_hist = pd.read_csv(FILE_HIST) if os.path.exists(FILE_HIST) else pd.DataFrame()
+
+            # 2. KALKULASI METRIK UTAMA (KPI)
+            modal_terpakai = df_porto['Total_Modal'].sum() if not df_porto.empty else 0
+            saldo_kas = MODAL_AWAL - modal_terpakai
+            
+            total_realized_profit = df_hist['Total_Return_Rp'].sum() if not df_hist.empty else 0
+            total_aset = saldo_kas + modal_terpakai + total_realized_profit
+            
+            total_trade = len(df_hist)
+            if total_trade > 0:
+                win_count = len(df_hist[df_hist['Return_%'] > 0])
+                win_rate = (win_count / total_trade) * 100
+            else:
+                win_rate = 0.0
+
+            # 3. TAMPILAN KARTU METRIK (Membagi layar menjadi 4 kolom)
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric(label="💰 Total Aset (Rp)", value=f"{total_aset:,.0f}".replace(",", "."))
+            with col2:
+                st.metric(label="💵 Kas Tersedia (Rp)", value=f"{saldo_kas:,.0f}".replace(",", "."))
+            with col3:
+                st.metric(label="📈 Total Realized Profit (Rp)", value=f"{total_realized_profit:,.0f}".replace(",", "."), delta=f"{total_realized_profit:,.0f}")
+            with col4:
+                st.metric(label="🎯 Win Rate AI", value=f"{win_rate:.1f}%", delta=f"{total_trade} Transaksi Selesai", delta_color="off")
+
+            st.markdown("---")
+
+            # 4. SUB-TAB UNTUK TABEL DETAIL
+            sub_aktif, sub_riwayat = st.tabs(["🟢 Posisi Aktif (Hold)", "📚 Riwayat Transaksi (Closed)"])
+
+            with sub_aktif:
+                if not df_porto.empty:
+                    # Format ulang tabel agar cantik
+                    df_porto_tampil = df_porto.copy()
+                    df_porto_tampil['Harga_Beli'] = df_porto_tampil['Harga_Beli'].apply(lambda x: f"Rp {x:,.0f}")
+                    df_porto_tampil['Target_TP'] = df_porto_tampil['Target_TP'].apply(lambda x: f"Rp {x:,.0f}")
+                    df_porto_tampil['Target_CL'] = df_porto_tampil['Target_CL'].apply(lambda x: f"Rp {x:,.0f}")
+                    df_porto_tampil['Total_Modal'] = df_porto_tampil['Total_Modal'].apply(lambda x: f"Rp {x:,.0f}".replace(",", "."))
+                    
+                    st.dataframe(
+                        df_porto_tampil,
+                        use_container_width=True,
+                        hide_index=True
+                    )
+                else:
+                    st.info("Buku portofolio kosong. Bot sedang menunggu instruksi pembelian / sinyal AI.")
+
+            with sub_riwayat:
+                if not df_hist.empty:
+                    # Trik Streamlit: Memberikan warna pada tabel menggunakan fungsi background
+                    def warnai_profit(val):
+                        if isinstance(val, (int, float)):
+                            color = '#166534' if val > 0 else '#991b1b' if val < 0 else ''
+                            return f'background-color: {color}'
+                        return ''
+
+                    # Urutkan dari transaksi terbaru
+                    df_hist_tampil = df_hist.sort_values(by='Tanggal_Jual', ascending=False).reset_index(drop=True)
+                    
+                    st.dataframe(
+                        df_hist_tampil.style.applymap(warnai_profit, subset=['Total_Return_Rp', 'Return_%']).format({
+                            'Harga_Beli': "Rp {:,.0f}",
+                            'Harga_Jual': "Rp {:,.0f}",
+                            'Total_Return_Rp': "Rp {:,.0f}",
+                            'Return_%': "{:.2f}%"
+                        }),
+                        use_container_width=True,
+                        hide_index=True
+                    )
+                else:
+                    st.info("Belum ada riwayat penjualan saham.")                               
