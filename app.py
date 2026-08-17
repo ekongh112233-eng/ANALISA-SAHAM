@@ -1256,7 +1256,8 @@ if not df_hasil.empty:
                                 finalis = daftar_ticker
                             else:
                                 st.markdown(f"**⚔️ Babak Penyisihan {nama_rumus}**")
-                                chunk_size = 5
+                                # TRIK 1: Perbesar ukuran grup agar lebih hemat token & API calls
+                                chunk_size = 10 
                                 chunks = [daftar_ticker[i:i + chunk_size] for i in range(0, len(daftar_ticker), chunk_size)]
                                 
                                 for i, chunk in enumerate(chunks):
@@ -1279,21 +1280,34 @@ if not df_hasil.empty:
                                     Jika tidak ada yang bagus, balas: KOSONG
                                     """
                                     
-                                    try:
-                                        res = client.chat.completions.create(
-                                            model="llama-3.1-8b-instant",
-                                            messages=[{"role": "user", "content": prompt_penyisihan}],
-                                            temperature=0.2, max_tokens=50
-                                        )
-                                        jawaban = res.choices[0].message.content.strip().upper()
-                                        if "KOSONG" not in jawaban:
-                                            lolos = [x.strip() for x in jawaban.split(',') if x.strip() in chunk]
-                                            finalis.extend(lolos)
-                                            st.write(f"✅ Lolos: **{', '.join(lolos)}**")
-                                    except:
-                                        st.write("⚠️ Dilewati karena batas limit API.")
+                                    # TRIK 2: Sistem Auto-Retry jika ditolak oleh Groq
+                                    sukses = False
+                                    percobaan = 0
+                                    while not sukses and percobaan < 3:
+                                        try:
+                                            res = client.chat.completions.create(
+                                                model="llama-3.1-8b-instant",
+                                                messages=[{"role": "user", "content": prompt_penyisihan}],
+                                                temperature=0.2, max_tokens=50
+                                            )
+                                            jawaban = res.choices[0].message.content.strip().upper()
+                                            if "KOSONG" not in jawaban:
+                                                lolos = [x.strip() for x in jawaban.split(',') if x.strip() in chunk]
+                                                finalis.extend(lolos)
+                                                st.write(f"✅ Lolos: **{', '.join(lolos)}**")
+                                            else:
+                                                st.write("❌ Tidak ada yang lolos.")
+                                            sukses = True
+                                        except Exception as e:
+                                            percobaan += 1
+                                            if percobaan < 3:
+                                                st.warning(f"⚠️ Limit API (Grup {i+1}). Napas 10 detik lalu coba lagi (Percobaan {percobaan}/3)...")
+                                                time.sleep(10)
+                                            else:
+                                                st.error(f"🚨 Tetap gagal setelah 3x percobaan. Grup ini dilewati.")
                                         
-                                    time.sleep(2) # JEDA WAJIB
+                                    # TRIK 3: Perpanjang jeda normal menjadi 5 detik
+                                    time.sleep(5) 
                                     
                             # ==========================================
                             # FASE 2: GRAND FINAL & CETAK JSON
@@ -1327,30 +1341,39 @@ if not df_hasil.empty:
                                 ]
                                 """
                                 
-                                try:
-                                    res_final = client.chat.completions.create(
-                                        model="llama-3.1-8b-instant",
-                                        messages=[{"role": "user", "content": prompt_final}],
-                                        temperature=0.3, max_tokens=1000
-                                    )
-                                    
-                                    jawaban_raw = res_final.choices[0].message.content
-                                    bersih = jawaban_raw.replace('```json', '').replace('```', '').strip()
-                                    
-                                    hasil_json = json.loads(bersih)
-                                    df_tampil = pd.DataFrame(hasil_json)
-                                    
-                                    df_sinyal = df_tampil[['Ticker', 'Target_TP', 'Target_CL']]
-                                    df_sinyal.to_csv(file_output, index=False)
-                                    
-                                    st.success(f"Sinyal {nama_rumus} berhasil dicetak! ({file_output})")
-                                    with st.expander(f"Lihat Hasil {nama_rumus}"):
-                                        st.table(df_tampil)
+                                sukses_final = False
+                                percobaan_final = 0
+                                while not sukses_final and percobaan_final < 3:
+                                    try:
+                                        res_final = client.chat.completions.create(
+                                            model="llama-3.1-8b-instant",
+                                            messages=[{"role": "user", "content": prompt_final}],
+                                            temperature=0.3, max_tokens=1000
+                                        )
                                         
-                                except Exception as e:
-                                    st.error(f"Gagal mencetak JSON untuk {nama_rumus}.")
+                                        jawaban_raw = res_final.choices[0].message.content
+                                        bersih = jawaban_raw.replace('```json', '').replace('```', '').strip()
+                                        
+                                        hasil_json = json.loads(bersih)
+                                        df_tampil = pd.DataFrame(hasil_json)
+                                        
+                                        df_sinyal = df_tampil[['Ticker', 'Target_TP', 'Target_CL']]
+                                        df_sinyal.to_csv(file_output, index=False)
+                                        
+                                        st.success(f"Sinyal {nama_rumus} berhasil dicetak! ({file_output})")
+                                        with st.expander(f"Lihat Hasil {nama_rumus}"):
+                                            st.table(df_tampil)
+                                        sukses_final = True
+                                        
+                                    except Exception as e:
+                                        percobaan_final += 1
+                                        if percobaan_final < 3:
+                                            st.warning(f"⚠️ Limit API di Grand Final. Napas 10 detik (Percobaan {percobaan_final}/3)...")
+                                            time.sleep(10)
+                                        else:
+                                            st.error(f"Gagal mencetak JSON untuk {nama_rumus}.")
                                     
-                            time.sleep(3)
+                            time.sleep(10) # Jeda panjang antar rumus (10 detik)
                             progress_utama.progress((index_rumus + 1) / 9)
                             st.markdown("---")
                             
