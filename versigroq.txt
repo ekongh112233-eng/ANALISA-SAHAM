@@ -1,4 +1,4 @@
-qwen/qwen3.6-27b
 mistral-saba-24b
 openai/gpt-oss-20b
 openai/gpt-oss-120b
+qwen/qwen3.6-27b
