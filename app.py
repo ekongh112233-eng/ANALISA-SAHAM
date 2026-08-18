@@ -1196,13 +1196,28 @@ if not df_hasil.empty:
                                         st.rerun()
 
             # ===============================================
-            # AREA ASISTEN AI (TOMBOL SAKTI 9 TURNAMEN AUTO-PILOT)
+            # AREA ASISTEN AI (SISTEM TURNAMEN MANUAL PER RUMUS)
             # ===============================================
             with tab_ai:
-                st.markdown("### 🤖 Turnamen AI (Grand Arena 9 Rumus)")
-                st.info("Mode Auto-Pilot: Mesin akan menyelenggarakan turnamen ketat (Penyisihan & Final) untuk ke-9 rumus secara berurutan. Setiap pemenang akan disalurkan ke simulator virtual masing-masing.")
+                st.markdown("### 🤖 Analisis AI Spesial (Sistem Turnamen & Distribusi Bot)")
+                st.info("Pilih satu rumus untuk dianalisis. Hasil Turnamen (Top 5) akan otomatis dikirim ke 'kamar' simulator bot rumus tersebut di Tab 6.")
                 
-                if st.button("🔥 Eksekusi Turnamen 9 Rumus (Mode Auto-Pilot)"):
+                pilih_rumus_ai = st.selectbox(
+                    "Pilih Rumus yang akan dianalisis oleh AI:",
+                    [
+                        "Rumus 1 (Harga 50-200 + Tembus MA20)", 
+                        "Rumus 2 (Harga 50-200 + Oversold)", 
+                        "Rumus 3 (Harga 50-200 + Supply Kering)", 
+                        "Rumus 4 (Harga 50-200 + Golden Fibo 61.8%)", 
+                        "Rumus 5 (Harga 50-200 + Anomali Bandar)",
+                        "Rumus 6 (Harga 50-200 + Dekat Support)",
+                        "Rumus 7 (Harga 50-200 + Akumulasi Pro)",
+                        "Rumus 8 (Harga 50-200 + Accumulation Wyckoff)",
+                        "Rumus 9 (Harga 50-200 + Undervalued)"
+                    ], key="pilihan_ai_spesial"
+                )
+                
+                if st.button("🔥 Mulai Turnamen AI & Ekspor ke Bot"):
                     GROQ_API_KEY = st.secrets.get("GROQ_API_KEY", None)
                     if not GROQ_API_KEY:
                         st.error("Kunci API Groq belum dipasang!")
@@ -1213,55 +1228,46 @@ if not df_hasil.empty:
                         
                         client = Groq(api_key=GROQ_API_KEY)
                         
-                        # Daftar 9 Rumus dan Pemetaan File Sinyalnya
-                        daftar_arena = [
-                            {"nama": "Rumus 1 (Tembus MA20)", "df": df_v1, "file": "sinyal_ai_rumus_1.csv"},
-                            {"nama": "Rumus 2 (Oversold)", "df": df_v2, "file": "sinyal_ai_rumus_2.csv"},
-                            {"nama": "Rumus 3 (Supply Kering)", "df": df_v3, "file": "sinyal_ai_rumus_3.csv"},
-                            {"nama": "Rumus 4 (Golden Fibo)", "df": df_v4, "file": "sinyal_ai_rumus_4.csv"},
-                            {"nama": "Rumus 5 (Anomali Bandar)", "df": df_v5, "file": "sinyal_ai_rumus_5.csv"},
-                            {"nama": "Rumus 6 (Dekat Support)", "df": df_v6, "file": "sinyal_ai_rumus_6.csv"},
-                            {"nama": "Rumus 7 (Akumulasi Pro)", "df": df_v7, "file": "sinyal_ai_rumus_7.csv"},
-                            {"nama": "Rumus 8 (Wyckoff)", "df": df_v8, "file": "sinyal_ai_rumus_8.csv"},
-                            {"nama": "Rumus 9 (Undervalued)", "df": df_v9, "file": "sinyal_ai_rumus_9.csv"}
-                        ]
+                        # 1. Tentukan Dataframe dan Nama File Output berdasarkan Dropdown
+                        df_target = pd.DataFrame()
+                        file_output = ""
+                        nama_rumus = ""
                         
-                        progress_utama = st.progress(0)
-                        status_teks = st.empty()
+                        if "Rumus 1" in pilih_rumus_ai: df_target, file_output, nama_rumus = df_v1, "sinyal_ai_rumus_1.csv", "Rumus 1"
+                        elif "Rumus 2" in pilih_rumus_ai: df_target, file_output, nama_rumus = df_v2, "sinyal_ai_rumus_2.csv", "Rumus 2"
+                        elif "Rumus 3" in pilih_rumus_ai: df_target, file_output, nama_rumus = df_v3, "sinyal_ai_rumus_3.csv", "Rumus 3"
+                        elif "Rumus 4" in pilih_rumus_ai: df_target, file_output, nama_rumus = df_v4, "sinyal_ai_rumus_4.csv", "Rumus 4"
+                        elif "Rumus 5" in pilih_rumus_ai: df_target, file_output, nama_rumus = df_v5, "sinyal_ai_rumus_5.csv", "Rumus 5"
+                        elif "Rumus 6" in pilih_rumus_ai: df_target, file_output, nama_rumus = df_v6, "sinyal_ai_rumus_6.csv", "Rumus 6"
+                        elif "Rumus 7" in pilih_rumus_ai: df_target, file_output, nama_rumus = df_v7, "sinyal_ai_rumus_7.csv", "Rumus 7"
+                        elif "Rumus 8" in pilih_rumus_ai: df_target, file_output, nama_rumus = df_v8, "sinyal_ai_rumus_8.csv", "Rumus 8"
+                        elif "Rumus 9" in pilih_rumus_ai: df_target, file_output, nama_rumus = df_v9, "sinyal_ai_rumus_9.csv", "Rumus 9"
                         
-                        # LOOPING UNTUK KE-9 RUMUS
-                        for index_rumus, arena in enumerate(daftar_arena):
-                            df_target = arena["df"]
-                            nama_rumus = arena["nama"]
-                            file_output = arena["file"]
-                            
-                            status_teks.markdown(f"### 🏟️ Sedang Berlangsung: {nama_rumus}")
-                            
-                            if df_target.empty:
-                                st.warning(f"⏩ Dilewati: Tidak ada saham yang lolos di {nama_rumus} hari ini.")
-                                progress_utama.progress((index_rumus + 1) / 9)
-                                continue
-                                
+                        if df_target.empty:
+                            st.warning(f"⚠️ Belum ada saham yang lolos di {nama_rumus} hari ini.")
+                        else:
                             daftar_ticker = df_target['Ticker'].tolist()
-                            st.write(f"Ditemukan {len(daftar_ticker)} saham. Memulai ekstraksi data historis...")
+                            st.success(f"Ditemukan {len(daftar_ticker)} saham. Memulai ekstraksi data historis untuk {nama_rumus}...")
                             
+                            # Ekstrak Sari Pati Arsip
                             data_sejarah_ai = ekstrak_sari_pati_arsip(daftar_ticker, df_hasil)
                             finalis = []
                             
                             # ==========================================
-                            # FASE 1: BABAK PENYISIHAN (TURNAMEN KETAT)
+                            # FASE 1: BABAK PENYISIHAN (5 SAHAM PER GRUP)
                             # ==========================================
                             if len(daftar_ticker) <= 5:
-                                st.info("Peserta sedikit, langsung masuk Grand Final.")
+                                st.info("Jumlah kandidat sedikit. Langsung menuju Grand Final!")
                                 finalis = daftar_ticker
                             else:
-                                st.markdown(f"**⚔️ Babak Penyisihan {nama_rumus}**")
-                                # TRIK 1: Perbesar ukuran grup agar lebih hemat token & API calls
-                                chunk_size = 10 
+                                st.markdown("#### ⚔️ Babak Penyisihan Dimulai")
+                                progress_bar = st.progress(0)
+                                
+                                chunk_size = 5
                                 chunks = [daftar_ticker[i:i + chunk_size] for i in range(0, len(daftar_ticker), chunk_size)]
                                 
                                 for i, chunk in enumerate(chunks):
-                                    st.caption(f"Menganalisis Grup {i+1}/{len(chunks)} ({', '.join(chunk)})...")
+                                    st.write(f"Menganalisis Grup {i+1}/{len(chunks)} ({', '.join(chunk)})...")
                                     
                                     payload_grup = ""
                                     for tkr in chunk:
@@ -1277,10 +1283,10 @@ if not df_hasil.empty:
                                     
                                     Pilih MAKSIMAL 2 SAHAM TERBAIK yang memiliki jejak akumulasi paling kuat untuk Day Trading besok.
                                     Balas HANYA dengan Ticker saham yang lolos, pisahkan dengan koma.
+                                    Contoh balasan: VISI, PANI
                                     Jika tidak ada yang bagus, balas: KOSONG
                                     """
                                     
-                                    # TRIK 2: Sistem Auto-Retry jika ditolak oleh Groq
                                     sukses = False
                                     percobaan = 0
                                     while not sukses and percobaan < 3:
@@ -1294,91 +1300,93 @@ if not df_hasil.empty:
                                             if "KOSONG" not in jawaban:
                                                 lolos = [x.strip() for x in jawaban.split(',') if x.strip() in chunk]
                                                 finalis.extend(lolos)
-                                                st.write(f"✅ Lolos: **{', '.join(lolos)}**")
+                                                st.write(f"➡️ Lolos ke Final: **{', '.join(lolos)}**")
                                             else:
-                                                st.write("❌ Tidak ada yang lolos.")
+                                                st.write("➡️ Tidak ada yang lolos dari grup ini.")
                                             sukses = True
                                         except Exception as e:
                                             percobaan += 1
                                             if percobaan < 3:
-                                                st.warning(f"⚠️ Limit API (Grup {i+1}). Napas 10 detik lalu coba lagi (Percobaan {percobaan}/3)...")
-                                                time.sleep(10)
+                                                st.warning(f"⚠️ Limit API. Jeda 5 detik... (Percobaan {percobaan}/3)")
+                                                time.sleep(5)
                                             else:
-                                                st.error(f"🚨 Tetap gagal setelah 3x percobaan. Grup ini dilewati.")
+                                                st.error("🚨 Gagal memproses grup ini.")
                                         
-                                    # TRIK 3: Perpanjang jeda normal menjadi 5 detik
-                                    time.sleep(5) 
+                                    progress_bar.progress((i + 1) / len(chunks))
+                                    time.sleep(3) # Jeda antar grup agar aman
                                     
                             # ==========================================
-                            # FASE 2: GRAND FINAL & CETAK JSON
+                            # FASE 2: GRAND FINAL & DISTRIBUSI FILE
                             # ==========================================
+                            st.markdown(f"#### 🏆 Grand Final {nama_rumus} (Mencetak Sinyal Auto-Trade)")
                             if not finalis:
-                                st.warning(f"Gugur semua. Tidak ada sinyal untuk {nama_rumus}.")
+                                st.warning("Tidak ada saham yang lolos ke Grand Final. Pasar mungkin sedang buruk.")
                             else:
-                                st.markdown(f"**🏆 Grand Final {nama_rumus}**")
+                                st.write(f"Kandidat Final: {', '.join(finalis)}")
+                                
                                 payload_final = ""
                                 for tkr in finalis:
                                     try:
                                         row_data = df_target[df_target['Ticker'] == tkr].iloc[0]
                                         payload_final += f"\n--- {tkr} ---\n"
                                         payload_final += f"Harga: {row_data.get('Harga (Rp)', 0)} | Vol: {row_data.get('Volume', 0)}\n"
+                                        payload_final += f"Broksum: {row_data.get('Broksum', 'Normal')} | Supply: {row_data.get('Kondisi Supply', 'Normal')}\n"
                                         payload_final += f"Jejak Historis: {data_sejarah_ai.get(tkr, 'Tidak ada data')}\n"
                                     except:
                                         pass
                                         
                                 prompt_final = f"""
-                                You are an Elite Indonesian Stock Analyst. Finalists:
+                                You are an Elite Indonesian Stock Analyst. You have {len(finalis)} finalists:
                                 {payload_final}
                                 
-                                MISSION:
+                                YOUR MISSION:
                                 1. Pick EXACTLY the TOP 5 stocks with the highest probability of Gap Up / ARA tomorrow (If less than 5, pick all).
-                                2. Determine Target_TP and Target_CL (Must be integer numbers).
+                                2. Determine Target_TP and Target_CL. They MUST be integer numbers.
                                 3. You MUST output ONLY a valid JSON array of objects.
                                 
                                 Format exactly like this:
                                 [
-                                  {{"Peringkat": 1, "Ticker": "GOTO", "Alasan": "Akumulasi", "Target_TP": 60, "Target_CL": 50}}
+                                  {{"Peringkat": 1, "Ticker": "GOTO", "Alasan": "Akumulasi siluman", "Target_TP": 60, "Target_CL": 50}}
                                 ]
                                 """
                                 
-                                sukses_final = False
-                                percobaan_final = 0
-                                while not sukses_final and percobaan_final < 3:
-                                    try:
-                                        res_final = client.chat.completions.create(
-                                            model="llama-3.1-8b-instant",
-                                            messages=[{"role": "user", "content": prompt_final}],
-                                            temperature=0.3, max_tokens=1000
-                                        )
-                                        
-                                        jawaban_raw = res_final.choices[0].message.content
-                                        bersih = jawaban_raw.replace('```json', '').replace('```', '').strip()
-                                        
-                                        hasil_json = json.loads(bersih)
-                                        df_tampil = pd.DataFrame(hasil_json)
-                                        
-                                        df_sinyal = df_tampil[['Ticker', 'Target_TP', 'Target_CL']]
-                                        df_sinyal.to_csv(file_output, index=False)
-                                        
-                                        st.success(f"Sinyal {nama_rumus} berhasil dicetak! ({file_output})")
-                                        with st.expander(f"Lihat Hasil {nama_rumus}"):
-                                            st.table(df_tampil)
-                                        sukses_final = True
-                                        
-                                    except Exception as e:
-                                        percobaan_final += 1
-                                        if percobaan_final < 3:
-                                            st.warning(f"⚠️ Limit API di Grand Final. Napas 10 detik (Percobaan {percobaan_final}/3)...")
-                                            time.sleep(10)
-                                        else:
-                                            st.error(f"Gagal mencetak JSON untuk {nama_rumus}.")
-                                    
-                            time.sleep(10) # Jeda panjang antar rumus (10 detik)
-                            progress_utama.progress((index_rumus + 1) / 9)
-                            st.markdown("---")
-                            
-                        status_teks.success("🏁 **SELURUH TURNAMEN SELESAI!** 9 File Sinyal berhasil didistribusikan ke Bot Simulator.")
-                        st.balloons()
+                                with st.spinner(f"AI sedang menyusun JSON untuk Bot {nama_rumus}..."):
+                                    sukses_final = False
+                                    percobaan_final = 0
+                                    while not sukses_final and percobaan_final < 3:
+                                        try:
+                                            res_final = client.chat.completions.create(
+                                                model="llama-3.1-8b-instant",
+                                                messages=[{"role": "user", "content": prompt_final}],
+                                                temperature=0.3, max_tokens=1000
+                                            )
+                                            
+                                            jawaban_raw = res_final.choices[0].message.content
+                                            bersih = jawaban_raw.replace('```json', '').replace('```', '').strip()
+                                            
+                                            hasil_json = json.loads(bersih)
+                                            df_tampil = pd.DataFrame(hasil_json)
+                                            
+                                            with st.container():
+                                                st.markdown("---")
+                                                st.success(f"🎉 **Sinyal {nama_rumus} Berhasil Dicetak!**")
+                                                st.table(df_tampil)
+                                                st.markdown("---")
+                                                
+                                            # EXPORT SINYAL SESUAI NAMA RUMUS AGAR DIBACA BOT
+                                            df_sinyal = df_tampil[['Ticker', 'Target_TP', 'Target_CL']]
+                                            df_sinyal.to_csv(file_output, index=False)
+                                            
+                                            st.info(f"🤖 **Sinyal dikirim ke Bot Simulator!** Silakan cek Tab 6 ({nama_rumus}) besok pagi.")
+                                            sukses_final = True
+                                            
+                                        except Exception as e:
+                                            percobaan_final += 1
+                                            if percobaan_final < 3:
+                                                st.warning(f"⚠️ Limit API di Grand Final. Jeda 5 detik... (Percobaan {percobaan_final}/3)")
+                                                time.sleep(5)
+                                            else:
+                                                st.error("❌ Terjadi kesalahan mencetak JSON di Grand Final.")
 
         # ===============================================
         # TAB 6: DASHBOARD PORTOFOLIO SIMULASI AI
