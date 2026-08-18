@@ -1376,13 +1376,13 @@ if not df_hasil.empty:
                                 {payload_final}
                                 
                                 YOUR MISSION:
-                                1. Pick EXACTLY the TOP 5 stocks with the highest probability of Gap Up / ARA tomorrow (If less than 5, pick all).
-                                2. Determine Target_TP and Target_CL. They MUST be integer numbers.
-                                3. You MUST output ONLY a valid JSON array of objects.
+                                1. Pick EXACTLY the TOP 5 stocks with the highest probability of Gap Up / ARA tomorrow morning. (If there are fewer than 5 finalists, pick all of them).
+                                2. Determine a logical Day Trading plan. Target_TP (Take Profit) and Target_CL (Cut Loss) MUST be integer numbers.
+                                3. You MUST output ONLY a valid JSON array of objects. Do not wrap it in markdown code blocks.
                                 
-                                Format exactly like this:
+                                Format EXACTLY like this example:
                                 [
-                                  {{"Peringkat": 1, "Ticker": "GOTO", "Alasan": "Akumulasi siluman", "Target_TP": 60, "Target_CL": 50}}
+                                  {{"Peringkat": 1, "Ticker": "GOTO", "Alasan": "Silent accumulation in the afternoon session", "Target_TP": 60, "Target_CL": 50}}
                                 ]
                                 """
                                 
