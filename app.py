@@ -1307,11 +1307,12 @@ if not df_hasil.empty:
                                             sukses = True
                                         except Exception as e:
                                             percobaan += 1
+                                            pesan_error = str(e)
                                             if percobaan < 3:
-                                                st.warning(f"⚠️ Limit API terdeteksi. Mundur sejenak 60 detik... (Percobaan {percobaan}/3)")
+                                                st.warning(f"⚠️ **Limit Groq Terdeteksi!**\n\nRespon Server: `{pesan_error}`\n\nMencoba jeda 60 detik... (Percobaan {percobaan}/3)")
                                                 time.sleep(60)
                                             else:
-                                                st.error("🚨 Gagal memproses grup ini.")
+                                                st.error(f"🚨 **Gagal memproses grup ini.**\nDetail Limit: `{pesan_error}`")
                                         
                                     progress_bar.progress((i + 1) / len(chunks))
                                     
@@ -1391,11 +1392,12 @@ if not df_hasil.empty:
                                             
                                         except Exception as e:
                                             percobaan_final += 1
+                                            pesan_error = str(e)
                                             if percobaan_final < 3:
-                                                st.warning(f"⚠️ Limit API di Grand Final. Jeda 60 detik... (Percobaan {percobaan_final}/3)")
+                                                st.warning(f"⚠️ **Limit Groq di Grand Final!**\n\nRespon Server: `{pesan_error}`\n\nMencoba jeda 60 detik... (Percobaan {percobaan_final}/3)")
                                                 time.sleep(60)
                                             else:
-                                                st.error("❌ Terjadi kesalahan mencetak JSON di Grand Final. (Batas limit habis)")
+                                                st.error(f"❌ **Gagal mencetak JSON.**\nDetail Limit: `{pesan_error}`")
 
         # ===============================================
         # TAB 6: DASHBOARD PORTOFOLIO SIMULASI AI
