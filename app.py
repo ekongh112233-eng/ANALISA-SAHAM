@@ -1196,11 +1196,11 @@ if not df_hasil.empty:
                                         st.rerun()
 
             # ===============================================
-            # AREA ASISTEN AI (SISTEM TURNAMEN MANUAL PER RUMUS)
+            # AREA ASISTEN AI (SISTEM TURNAMEN LAMBAT & AMAN)
             # ===============================================
             with tab_ai:
                 st.markdown("### 🤖 Analisis AI Spesial (Sistem Turnamen & Distribusi Bot)")
-                st.info("Pilih satu rumus untuk dianalisis. Hasil Turnamen (Top 5) akan otomatis dikirim ke 'kamar' simulator bot rumus tersebut di Tab 6.")
+                st.info("Pilih satu rumus untuk dianalisis. Mesin menggunakan mode lambat (jeda 60 detik) agar tidak terkena blokir limit API Groq.")
                 
                 pilih_rumus_ai = st.selectbox(
                     "Pilih Rumus yang akan dianalisis oleh AI:",
@@ -1254,7 +1254,7 @@ if not df_hasil.empty:
                             finalis = []
                             
                             # ==========================================
-                            # FASE 1: BABAK PENYISIHAN (5 SAHAM PER GRUP)
+                            # FASE 1: BABAK PENYISIHAN (10 SAHAM / GRUP / JEDA 1 MENIT)
                             # ==========================================
                             if len(daftar_ticker) <= 5:
                                 st.info("Jumlah kandidat sedikit. Langsung menuju Grand Final!")
@@ -1263,7 +1263,8 @@ if not df_hasil.empty:
                                 st.markdown("#### ⚔️ Babak Penyisihan Dimulai")
                                 progress_bar = st.progress(0)
                                 
-                                chunk_size = 5
+                                # Dibagi menjadi 10 saham per grup
+                                chunk_size = 10
                                 chunks = [daftar_ticker[i:i + chunk_size] for i in range(0, len(daftar_ticker), chunk_size)]
                                 
                                 for i, chunk in enumerate(chunks):
@@ -1281,9 +1282,9 @@ if not df_hasil.empty:
                                     Dari daftar saham berikut:
                                     {payload_grup}
                                     
-                                    Pilih MAKSIMAL 2 SAHAM TERBAIK yang memiliki jejak akumulasi paling kuat untuk Day Trading besok.
+                                    Pilih MAKSIMAL 3 SAHAM TERBAIK yang memiliki jejak akumulasi paling kuat untuk Day Trading besok.
                                     Balas HANYA dengan Ticker saham yang lolos, pisahkan dengan koma.
-                                    Contoh balasan: VISI, PANI
+                                    Contoh balasan: VISI, PANI, GOTO
                                     Jika tidak ada yang bagus, balas: KOSONG
                                     """
                                     
@@ -1307,13 +1308,17 @@ if not df_hasil.empty:
                                         except Exception as e:
                                             percobaan += 1
                                             if percobaan < 3:
-                                                st.warning(f"⚠️ Limit API. Jeda 5 detik... (Percobaan {percobaan}/3)")
-                                                time.sleep(5)
+                                                st.warning(f"⚠️ Limit API terdeteksi. Mundur sejenak 60 detik... (Percobaan {percobaan}/3)")
+                                                time.sleep(60)
                                             else:
                                                 st.error("🚨 Gagal memproses grup ini.")
                                         
                                     progress_bar.progress((i + 1) / len(chunks))
-                                    time.sleep(3) # Jeda antar grup agar aman
+                                    
+                                    # JEDA MUTLAK 60 DETIK ANTAR GRUP (Kecuali jika ini adalah grup terakhir)
+                                    if i < len(chunks) - 1:
+                                        with st.spinner("⏳ Mendinginkan mesin (Jeda 60 detik) untuk menghindari limit Groq..."):
+                                            time.sleep(60)
                                     
                             # ==========================================
                             # FASE 2: GRAND FINAL & DISTRIBUSI FILE
@@ -1323,6 +1328,10 @@ if not df_hasil.empty:
                                 st.warning("Tidak ada saham yang lolos ke Grand Final. Pasar mungkin sedang buruk.")
                             else:
                                 st.write(f"Kandidat Final: {', '.join(finalis)}")
+                                
+                                # Berikan jeda 30 detik sebelum masuk Grand Final agar sisa kuota aman
+                                with st.spinner("⏳ Persiapan masuk Grand Final (Jeda 30 detik)..."):
+                                    time.sleep(30)
                                 
                                 payload_final = ""
                                 for tkr in finalis:
@@ -1383,10 +1392,10 @@ if not df_hasil.empty:
                                         except Exception as e:
                                             percobaan_final += 1
                                             if percobaan_final < 3:
-                                                st.warning(f"⚠️ Limit API di Grand Final. Jeda 5 detik... (Percobaan {percobaan_final}/3)")
-                                                time.sleep(5)
+                                                st.warning(f"⚠️ Limit API di Grand Final. Jeda 60 detik... (Percobaan {percobaan_final}/3)")
+                                                time.sleep(60)
                                             else:
-                                                st.error("❌ Terjadi kesalahan mencetak JSON di Grand Final.")
+                                                st.error("❌ Terjadi kesalahan mencetak JSON di Grand Final. (Batas limit habis)")
 
         # ===============================================
         # TAB 6: DASHBOARD PORTOFOLIO SIMULASI AI
