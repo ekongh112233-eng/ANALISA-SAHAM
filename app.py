@@ -1224,6 +1224,7 @@ if not df_hasil.empty:
                     else:
                         import time
                         import json
+                        import os
                         from groq import Groq
                         
                         client = Groq(api_key=GROQ_API_KEY)
@@ -1258,7 +1259,7 @@ if not df_hasil.empty:
                             finalis = []
                             
                             # ==========================================
-                            # FASE 1: BABAK PENYISIHAN (WAJIB JSON)
+                            # FASE 1: BABAK PENYISIHAN (POTONG KOMPAS JSON)
                             # ==========================================
                             if len(daftar_ticker) <= 5:
                                 st.info("Jumlah kandidat sedikit. Langsung menuju Grand Final!")
@@ -1303,38 +1304,35 @@ if not df_hasil.empty:
                                             res = client.chat.completions.create(
                                                 model=MODEL_ANDALAN,
                                                 messages=[{"role": "user", "content": prompt_penyisihan}],
-                                                temperature=0.1, max_tokens=1000 # <-- PERUBAHAN: Napas diperpanjang jadi 1000
+                                                temperature=0.1, max_tokens=2000 # <-- PERUBAHAN: Napas diperpanjang!
                                             )
                                             jawaban_mentah = res.choices[0].message.content.strip()
                                             
-                                            # Rontgen X-Ray untuk memantau teks asli
-                                            with st.expander(f"🔍 X-Ray Qwen (Grup {i+1})"):
-                                                st.code(jawaban_mentah)
-                                            
-                                            # LOGIKA BARU: Potong Kompas Mencari Tanda Kurung JSON {...}
+                                            # LOGIKA BARU: Potong Kompas (Abaikan <think>)
                                             awal = jawaban_mentah.find('{')
                                             akhir = jawaban_mentah.rfind('}')
                                             
                                             if awal != -1 and akhir != -1:
                                                 bersih = jawaban_mentah[awal:akhir+1]
                                             else:
-                                                bersih = '{"kandidat": []}' # Jika gagal total, anggap kosong
+                                                bersih = '{"kandidat": []}' # Anggap kosong jika tidak ada kurung kurawal
                                             
                                             data_json = json.loads(bersih)
                                             lolos = data_json.get("kandidat", [])
                                             
+                                            # Validasi keamanan
                                             lolos_valid = [x for x in lolos if x in chunk]
                                             
                                             if lolos_valid:
                                                 finalis.extend(lolos_valid)
                                                 st.write(f"➡️ Lolos ke Final: **{', '.join(lolos_valid)}**")
                                             else:
-                                                st.write("➡️ Tidak ada yang lolos.")
+                                                st.write("➡️ Tidak ada yang lolos (Array JSON Kosong).")
                                                 
                                             sukses = True
                                             
                                         except json.JSONDecodeError:
-                                            st.warning(f"⚠️ Percobaan {percobaan}: Qwen gagal mencetak JSON murni. Mengulang...")
+                                            st.warning(f"⚠️ Percobaan {percobaan}: Gagal mengekstrak JSON. Mengulang...")
                                             time.sleep(2)
                                         except Exception as e:
                                             pesan_error = str(e)
@@ -1351,11 +1349,11 @@ if not df_hasil.empty:
                                     progress_bar.progress((i + 1) / len(chunks))
                                     
                                     if i < len(chunks) - 1:
-                                        with st.spinner("⏳ Jeda pendingin (15 detik) untuk keamanan API..."):
+                                        with st.spinner("⏳ Jeda pendingin (15 detik)..."):
                                             time.sleep(15)
                                     
                             # ==========================================
-                            # FASE 2: GRAND FINAL (JSON KETAT)
+                            # FASE 2: GRAND FINAL (POTONG KOMPAS ARRAY)
                             # ==========================================
                             st.markdown(f"#### 🏆 Grand Final {nama_rumus}")
                             if not finalis:
@@ -1404,12 +1402,12 @@ if not df_hasil.empty:
                                             res_final = client.chat.completions.create(
                                                 model=MODEL_ANDALAN,
                                                 messages=[{"role": "user", "content": prompt_final}],
-                                                temperature=0.2, max_tokens=2000 # <-- PERUBAHAN: Grand Final butuh JSON lebih panjang
+                                                temperature=0.2, max_tokens=2500 # <-- PERUBAHAN: Grand Final butuh token ekstra
                                             )
                                             
                                             jawaban_raw = res_final.choices[0].message.content.strip()
                                             
-                                            # LOGIKA BARU: Potong kompas cari tanda kurung siku Array [...]
+                                            # LOGIKA BARU: Potong Kompas Array (Abaikan <think>)
                                             awal = jawaban_raw.find('[')
                                             akhir = jawaban_raw.rfind(']')
                                             
