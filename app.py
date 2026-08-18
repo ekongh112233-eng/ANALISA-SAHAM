@@ -1293,10 +1293,11 @@ if not df_hasil.empty:
                                     while not sukses and percobaan < 3:
                                         try:
                                             res = client.chat.completions.create(
-                                                model="llama-3.1-8b-instant",
-                                                messages=[{"role": "user", "content": prompt_penyisihan}],
-                                                temperature=0.2, max_tokens=50
-                                            )
+                                                    model="llama-3.3-70b-versatile",
+                                                    messages=[{"role": "user", "content": prompt_penyisihan}],
+                                                    temperature=0.2,
+                                                    max_tokens=50,
+                                                )
                                             jawaban = res.choices[0].message.content.strip().upper()
                                             if "KOSONG" not in jawaban:
                                                 lolos = [x.strip() for x in jawaban.split(',') if x.strip() in chunk]
@@ -1366,9 +1367,10 @@ if not df_hasil.empty:
                                     while not sukses_final and percobaan_final < 3:
                                         try:
                                             res_final = client.chat.completions.create(
-                                                model="llama-3.1-8b-instant",
+                                                model="llama-3.3-70b-versatile",
                                                 messages=[{"role": "user", "content": prompt_final}],
-                                                temperature=0.3, max_tokens=1000
+                                                temperature=0.3,
+                                                max_tokens=1000,
                                             )
                                             
                                             jawaban_raw = res_final.choices[0].message.content
