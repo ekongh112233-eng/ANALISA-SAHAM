@@ -1315,6 +1315,12 @@ if not df_hasil.empty:
                                             )
                                             jawaban = res.choices[0].message.content.strip().upper()
                                             
+                                            # ==========================================
+                                            # 🔍 KODE X-RAY (MEMBOCORKAN JAWABAN MENTAH AI)
+                                            # ==========================================
+                                            st.info(f"🔍 **X-Ray Otak AI ({model_tes}):** `{jawaban}`")
+                                            # ==========================================
+                                            
                                             if "KOSONG" not in jawaban:
                                                 lolos = [x.strip() for x in jawaban.split(',') if x.strip() in chunk]
                                                 finalis.extend(lolos)
