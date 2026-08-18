@@ -1292,8 +1292,6 @@ if not df_hasil.empty:
                                     You MUST reply ONLY with a valid JSON object containing a single key "kandidat" with a list of strings as its value.
                                     - If you find good stocks: {{"kandidat": ["VISI", "PANI"]}}
                                     - If NO stocks are good: {{"kandidat": []}}
-                                    
-                                    Do not output any markdown formatting, backticks, or explanations. Just the JSON object.
                                     """
                                     
                                     sukses = False
@@ -1305,27 +1303,33 @@ if not df_hasil.empty:
                                             res = client.chat.completions.create(
                                                 model=MODEL_ANDALAN,
                                                 messages=[{"role": "user", "content": prompt_penyisihan}],
-                                                temperature=0.1, max_tokens=100
+                                                temperature=0.1, max_tokens=1000 # <-- PERUBAHAN: Napas diperpanjang jadi 1000
                                             )
                                             jawaban_mentah = res.choices[0].message.content.strip()
                                             
-                                            # Rontgen X-Ray untuk memantau JSON
-                                            st.info(f"🔍 **X-Ray Qwen:** `{jawaban_mentah}`")
+                                            # Rontgen X-Ray untuk memantau teks asli
+                                            with st.expander(f"🔍 X-Ray Qwen (Grup {i+1})"):
+                                                st.code(jawaban_mentah)
                                             
-                                            # Membersihkan markdown ganda jika Qwen bandel
-                                            bersih = jawaban_mentah.replace('```json', '').replace('```', '').strip()
+                                            # LOGIKA BARU: Potong Kompas Mencari Tanda Kurung JSON {...}
+                                            awal = jawaban_mentah.find('{')
+                                            akhir = jawaban_mentah.rfind('}')
+                                            
+                                            if awal != -1 and akhir != -1:
+                                                bersih = jawaban_mentah[awal:akhir+1]
+                                            else:
+                                                bersih = '{"kandidat": []}' # Jika gagal total, anggap kosong
                                             
                                             data_json = json.loads(bersih)
                                             lolos = data_json.get("kandidat", [])
                                             
-                                            # Validasi agar hanya saham di dalam grup yang lolos
                                             lolos_valid = [x for x in lolos if x in chunk]
                                             
                                             if lolos_valid:
                                                 finalis.extend(lolos_valid)
                                                 st.write(f"➡️ Lolos ke Final: **{', '.join(lolos_valid)}**")
                                             else:
-                                                st.write("➡️ Tidak ada yang lolos (Array JSON Kosong).")
+                                                st.write("➡️ Tidak ada yang lolos.")
                                                 
                                             sukses = True
                                             
@@ -1382,7 +1386,7 @@ if not df_hasil.empty:
                                 Target_TP and Target_CL MUST be integer numbers.
                                 
                                 STRICT RULE:
-                                You MUST output ONLY a valid JSON array of objects. Do NOT use markdown code blocks like ```json.
+                                You MUST output ONLY a valid JSON array of objects.
                                 
                                 Format EXACTLY like this:
                                 [
@@ -1400,11 +1404,19 @@ if not df_hasil.empty:
                                             res_final = client.chat.completions.create(
                                                 model=MODEL_ANDALAN,
                                                 messages=[{"role": "user", "content": prompt_final}],
-                                                temperature=0.2, max_tokens=1000
+                                                temperature=0.2, max_tokens=2000 # <-- PERUBAHAN: Grand Final butuh JSON lebih panjang
                                             )
                                             
                                             jawaban_raw = res_final.choices[0].message.content.strip()
-                                            bersih = jawaban_raw.replace('```json', '').replace('```', '').strip()
+                                            
+                                            # LOGIKA BARU: Potong kompas cari tanda kurung siku Array [...]
+                                            awal = jawaban_raw.find('[')
+                                            akhir = jawaban_raw.rfind(']')
+                                            
+                                            if awal != -1 and akhir != -1:
+                                                bersih = jawaban_raw[awal:akhir+1]
+                                            else:
+                                                bersih = "[]"
                                             
                                             hasil_json = json.loads(bersih)
                                             df_tampil = pd.DataFrame(hasil_json)
@@ -1415,8 +1427,9 @@ if not df_hasil.empty:
                                                 st.table(df_tampil)
                                                 st.markdown("---")
                                                 
-                                            df_sinyal = df_tampil[['Ticker', 'Target_TP', 'Target_CL']]
-                                            df_sinyal.to_csv(file_output, index=False)
+                                            if not df_tampil.empty:
+                                                df_sinyal = df_tampil[['Ticker', 'Target_TP', 'Target_CL']]
+                                                df_sinyal.to_csv(file_output, index=False)
                                             
                                             st.info(f"🤖 Sinyal dikirim ke Bot Simulator! Cek Tab 6.")
                                             sukses_final = True
