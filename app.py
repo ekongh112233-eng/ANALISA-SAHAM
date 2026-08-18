@@ -1224,24 +1224,14 @@ if not df_hasil.empty:
                     else:
                         import time
                         import json
-                        import os
                         from groq import Groq
                         
                         client = Groq(api_key=GROQ_API_KEY)
                         
                         # ==========================================
-                        # MEMBACA AMUNISI MODEL DARI FILE EKSTERNAL
+                        # MENGUNCI MODEL PILIHAN TERBAIK (QWEN)
                         # ==========================================
-                        FILE_MODEL = "versigroq.txt"
-                        daftar_model_groq = []
-                        
-                        if os.path.exists(FILE_MODEL):
-                            with open(FILE_MODEL, "r") as f:
-                                daftar_model_groq = [line.strip() for line in f if line.strip()]
-                        
-                        if not daftar_model_groq:
-                            st.warning(f"⚠️ File {FILE_MODEL} tidak ditemukan atau kosong. Menggunakan model bawaan.")
-                            daftar_model_groq = ["llama3-8b-8192", "mixtral-8x7b-32768"]
+                        MODEL_ANDALAN = "qwen/qwen3.6-27b"
                         
                         # 1. Tentukan Dataframe dan Nama File Output
                         df_target = pd.DataFrame()
@@ -1262,13 +1252,13 @@ if not df_hasil.empty:
                             st.warning(f"⚠️ Belum ada saham yang lolos di {nama_rumus} hari ini.")
                         else:
                             daftar_ticker = df_target['Ticker'].tolist()
-                            st.success(f"Ditemukan {len(daftar_ticker)} saham. Memulai ekstraksi data historis untuk {nama_rumus}...")
+                            st.success(f"Ditemukan {len(daftar_ticker)} saham. Memulai turnamen menggunakan otak {MODEL_ANDALAN}...")
                             
                             data_sejarah_ai = ekstrak_sari_pati_arsip(daftar_ticker, df_hasil)
                             finalis = []
                             
                             # ==========================================
-                            # FASE 1: BABAK PENYISIHAN
+                            # FASE 1: BABAK PENYISIHAN (WAJIB JSON)
                             # ==========================================
                             if len(daftar_ticker) <= 5:
                                 st.info("Jumlah kandidat sedikit. Langsung menuju Grand Final!")
@@ -1292,81 +1282,85 @@ if not df_hasil.empty:
                                         payload_grup += f"Jejak Historis: {data_sejarah_ai.get(tkr, 'Tidak ada data')}\n"
                                         
                                     prompt_penyisihan = f"""
-                                    You are a strict Day Trading AI. Analyze this list of stocks:
+                                    You are an elite stock screener. Analyze this data:
                                     {payload_grup}
                                     
                                     MISSION:
-                                    Pick a MAXIMUM of 3 stocks with the strongest accumulation.
-                                    - If you find good stocks, output ONLY their tickers separated by commas (e.g., VISI, PANI).
-                                    - If NO stocks are good enough, you MUST output the exact word: KOSONG
+                                    Select MAXIMUM 3 stocks with the strongest accumulation potential for tomorrow.
                                     
-                                    Do not say anything else. No markdown, no intro.
+                                    STRICT RULE:
+                                    You MUST reply ONLY with a valid JSON object containing a single key "kandidat" with a list of strings as its value.
+                                    - If you find good stocks: {{"kandidat": ["VISI", "PANI"]}}
+                                    - If NO stocks are good: {{"kandidat": []}}
+                                    
+                                    Do not output any markdown formatting, backticks, or explanations. Just the JSON object.
                                     """
                                     
                                     sukses = False
-                                    pesan_error_terakhir = ""
-                                    for model_tes in daftar_model_groq:
-                                        if sukses: break
-                                        
+                                    percobaan = 0
+                                    
+                                    while not sukses and percobaan < 3:
+                                        percobaan += 1
                                         try:
                                             res = client.chat.completions.create(
-                                                model=model_tes,
+                                                model=MODEL_ANDALAN,
                                                 messages=[{"role": "user", "content": prompt_penyisihan}],
-                                                temperature=0.2, max_tokens=50
+                                                temperature=0.1, max_tokens=100
                                             )
-                                            jawaban = res.choices[0].message.content.strip().upper()
+                                            jawaban_mentah = res.choices[0].message.content.strip()
                                             
-                                            # ==========================================
-                                            # 🔍 KODE X-RAY (MEMBOCORKAN JAWABAN MENTAH AI)
-                                            # ==========================================
-                                            st.info(f"🔍 **X-Ray Otak AI ({model_tes}):** `{jawaban}`")
-                                            # ==========================================
+                                            # Rontgen X-Ray untuk memantau JSON
+                                            st.info(f"🔍 **X-Ray Qwen:** `{jawaban_mentah}`")
                                             
-                                            # LOGIKA BARU: Tangkap jawaban kosong atau tulisan KOSONG
-                                            if "KOSONG" in jawaban or not jawaban:
-                                                st.write(f"➡️ Tidak ada yang lolos dari grup ini. *(via {model_tes})*")
+                                            # Membersihkan markdown ganda jika Qwen bandel
+                                            bersih = jawaban_mentah.replace('```json', '').replace('```', '').strip()
+                                            
+                                            data_json = json.loads(bersih)
+                                            lolos = data_json.get("kandidat", [])
+                                            
+                                            # Validasi agar hanya saham di dalam grup yang lolos
+                                            lolos_valid = [x for x in lolos if x in chunk]
+                                            
+                                            if lolos_valid:
+                                                finalis.extend(lolos_valid)
+                                                st.write(f"➡️ Lolos ke Final: **{', '.join(lolos_valid)}**")
                                             else:
-                                                # Cek apakah AI membalas dengan nama saham yang benar
-                                                lolos = [x.strip() for x in jawaban.split(',') if x.strip() in chunk]
-                                                if lolos:
-                                                    finalis.extend(lolos)
-                                                    st.write(f"➡️ Lolos ke Final: **{', '.join(lolos)}** *(via {model_tes})*")
-                                                else:
-                                                    st.write(f"➡️ AI menjawab ngawur. Grup dilewati. *(via {model_tes})*")
+                                                st.write("➡️ Tidak ada yang lolos (Array JSON Kosong).")
                                                 
                                             sukses = True
                                             
+                                        except json.JSONDecodeError:
+                                            st.warning(f"⚠️ Percobaan {percobaan}: Qwen gagal mencetak JSON murni. Mengulang...")
+                                            time.sleep(2)
                                         except Exception as e:
                                             pesan_error = str(e)
-                                            pesan_error_terakhir = pesan_error
-                                            if "404" in pesan_error or "model_not_found" in pesan_error:
-                                                st.warning(f"⚠️ Model `{model_tes}` tidak aktif (404). Melompat...")
-                                            elif "429" in pesan_error:
-                                                st.warning(f"⚠️ Kuota limit di `{model_tes}` (429). Beralih ke model lain...")
+                                            if "429" in pesan_error:
+                                                st.warning(f"⚠️ Limit API (429). Jeda 10 detik... (Percobaan {percobaan}/3)")
+                                                time.sleep(10)
                                             else:
-                                                st.error(f"🛑 ERROR ASLI dari {model_tes}:\n{pesan_error}")
-                                                time.sleep(1)
+                                                st.error(f"🛑 ERROR ASLI:\n{pesan_error}")
+                                                time.sleep(2)
                                                 
                                     if not sukses:
-                                        st.error(f"🚨 Semua model gagal! Error terakhir:\n`{pesan_error_terakhir}`")
+                                        st.error("🚨 Gagal mengekstrak data dari grup ini setelah 3x percobaan.")
                                         
                                     progress_bar.progress((i + 1) / len(chunks))
                                     
                                     if i < len(chunks) - 1:
-                                        with st.spinner("⏳ Mendinginkan mesin (Jeda 60 detik)..."):
-                                            time.sleep(60)
+                                        with st.spinner("⏳ Jeda pendingin (15 detik) untuk keamanan API..."):
+                                            time.sleep(15)
                                     
                             # ==========================================
-                            # FASE 2: GRAND FINAL
+                            # FASE 2: GRAND FINAL (JSON KETAT)
                             # ==========================================
-                            st.markdown(f"#### 🏆 Grand Final {nama_rumus} (Mencetak Sinyal Auto-Trade)")
+                            st.markdown(f"#### 🏆 Grand Final {nama_rumus}")
                             if not finalis:
                                 st.warning("Tidak ada saham yang lolos ke Grand Final. Pasar mungkin sedang buruk.")
                             else:
                                 st.write(f"Kandidat Final: {', '.join(finalis)}")
                                 
-                                with st.spinner("⏳ Persiapan masuk Grand Final (Jeda 30 detik)..."):
-                                    time.sleep(30)
+                                with st.spinner("⏳ Persiapan masuk Grand Final (Jeda 10 detik)..."):
+                                    time.sleep(10)
                                 
                                 payload_final = ""
                                 for tkr in finalis:
@@ -1380,35 +1374,36 @@ if not df_hasil.empty:
                                         pass
                                         
                                 prompt_final = f"""
-                                You are an Elite Indonesian Stock Analyst. You have {len(finalis)} finalists:
+                                You are an Elite Stock Analyst. Finalists:
                                 {payload_final}
                                 
-                                YOUR MISSION:
-                                1. Pick EXACTLY the TOP 5 stocks with the highest probability of Gap Up / ARA tomorrow morning. (If there are fewer than 5 finalists, pick all of them).
-                                2. Determine a logical Day Trading plan. Target_TP (Take Profit) and Target_CL (Cut Loss) MUST be integer numbers.
-                                3. You MUST output ONLY a valid JSON array of objects. Do not wrap it in markdown code blocks.
+                                MISSION:
+                                Pick EXACTLY the TOP 5 stocks with the highest probability of Gap Up tomorrow. (If fewer than 5, pick all).
+                                Target_TP and Target_CL MUST be integer numbers.
                                 
-                                Format EXACTLY like this example:
+                                STRICT RULE:
+                                You MUST output ONLY a valid JSON array of objects. Do NOT use markdown code blocks like ```json.
+                                
+                                Format EXACTLY like this:
                                 [
-                                  {{"Peringkat": 1, "Ticker": "GOTO", "Alasan": "Silent accumulation in the afternoon session", "Target_TP": 60, "Target_CL": 50}}
+                                  {{"Peringkat": 1, "Ticker": "GOTO", "Alasan": "Akumulasi masif", "Target_TP": 60, "Target_CL": 50}}
                                 ]
                                 """
                                 
-                                with st.spinner(f"AI sedang menyusun JSON untuk Bot {nama_rumus}..."):
+                                with st.spinner(f"AI menyusun taktik {nama_rumus}..."):
                                     sukses_final = False
-                                    pesan_error_final = ""
+                                    percobaan_final = 0
                                     
-                                    for model_tes in daftar_model_groq:
-                                        if sukses_final: break
-                                        
+                                    while not sukses_final and percobaan_final < 3:
+                                        percobaan_final += 1
                                         try:
                                             res_final = client.chat.completions.create(
-                                                model=model_tes,
+                                                model=MODEL_ANDALAN,
                                                 messages=[{"role": "user", "content": prompt_final}],
-                                                temperature=0.3, max_tokens=1000
+                                                temperature=0.2, max_tokens=1000
                                             )
                                             
-                                            jawaban_raw = res_final.choices[0].message.content
+                                            jawaban_raw = res_final.choices[0].message.content.strip()
                                             bersih = jawaban_raw.replace('```json', '').replace('```', '').strip()
                                             
                                             hasil_json = json.loads(bersih)
@@ -1416,29 +1411,26 @@ if not df_hasil.empty:
                                             
                                             with st.container():
                                                 st.markdown("---")
-                                                st.success(f"🎉 **Sinyal {nama_rumus} Berhasil Dicetak!** *(Model Pekerja: {model_tes})*")
+                                                st.success(f"🎉 **Sinyal {nama_rumus} Berhasil Dicetak!**")
                                                 st.table(df_tampil)
                                                 st.markdown("---")
                                                 
                                             df_sinyal = df_tampil[['Ticker', 'Target_TP', 'Target_CL']]
                                             df_sinyal.to_csv(file_output, index=False)
                                             
-                                            st.info(f"🤖 **Sinyal dikirim ke Bot Simulator!** Silakan cek Tab 6 ({nama_rumus}) besok pagi.")
+                                            st.info(f"🤖 Sinyal dikirim ke Bot Simulator! Cek Tab 6.")
                                             sukses_final = True
                                             
+                                        except json.JSONDecodeError:
+                                            st.warning(f"⚠️ JSON dari Qwen tidak valid. Mengulang (Percobaan {percobaan_final}/3)...")
+                                            time.sleep(2)
                                         except Exception as e:
                                             pesan_error = str(e)
-                                            pesan_error_final = pesan_error
-                                            if "404" in pesan_error or "model_not_found" in pesan_error:
-                                                st.warning(f"⚠️ Model `{model_tes}` tidak aktif (404). Melompat...")
-                                            elif "429" in pesan_error:
-                                                st.warning(f"⚠️ Kuota limit di `{model_tes}` (429). Mencoba model lain...")
-                                            else:
-                                                st.error(f"🛑 ERROR ASLI dari {model_tes}:\n{pesan_error}")
-                                                time.sleep(1)
+                                            st.error(f"🛑 ERROR ASLI:\n{pesan_error}")
+                                            time.sleep(5)
                                                 
                                     if not sukses_final:
-                                        st.error(f"❌ Terjadi kesalahan mencetak JSON di Grand Final. Error terakhir:\n`{pesan_error_final}`")
+                                        st.error("❌ Gagal mencetak sinyal Grand Final setelah 3 kali percobaan.")
 
         # ===============================================
         # TAB 6: DASHBOARD PORTOFOLIO SIMULASI AI
