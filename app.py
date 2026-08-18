@@ -1292,14 +1292,15 @@ if not df_hasil.empty:
                                         payload_grup += f"Jejak Historis: {data_sejarah_ai.get(tkr, 'Tidak ada data')}\n"
                                         
                                     prompt_penyisihan = f"""
-                                    From the following list of stocks and their historical data:
+                                    You are a strict Day Trading AI. Analyze this list of stocks:
                                     {payload_grup}
                                     
-                                    YOUR MISSION:
-                                    Select a MAXIMUM of 3 BEST STOCKS that show the strongest accumulation footprint (Golden Time) for Day Trading tomorrow.
-                                    Reply ONLY with the Tickers of the selected stocks, separated by commas. Do not write any explanations, introductory text, or markdown.
-                                    Example reply: VISI, PANI, GOTO
-                                    If none of the stocks are good, reply EXACTLY with the word: KOSONG
+                                    MISSION:
+                                    Pick a MAXIMUM of 3 stocks with the strongest accumulation.
+                                    - If you find good stocks, output ONLY their tickers separated by commas (e.g., VISI, PANI).
+                                    - If NO stocks are good enough, you MUST output the exact word: KOSONG
+                                    
+                                    Do not say anything else. No markdown, no intro.
                                     """
                                     
                                     sukses = False
@@ -1321,12 +1322,17 @@ if not df_hasil.empty:
                                             st.info(f"🔍 **X-Ray Otak AI ({model_tes}):** `{jawaban}`")
                                             # ==========================================
                                             
-                                            if "KOSONG" not in jawaban:
-                                                lolos = [x.strip() for x in jawaban.split(',') if x.strip() in chunk]
-                                                finalis.extend(lolos)
-                                                st.write(f"➡️ Lolos ke Final: **{', '.join(lolos)}** *(via {model_tes})*")
-                                            else:
+                                            # LOGIKA BARU: Tangkap jawaban kosong atau tulisan KOSONG
+                                            if "KOSONG" in jawaban or not jawaban:
                                                 st.write(f"➡️ Tidak ada yang lolos dari grup ini. *(via {model_tes})*")
+                                            else:
+                                                # Cek apakah AI membalas dengan nama saham yang benar
+                                                lolos = [x.strip() for x in jawaban.split(',') if x.strip() in chunk]
+                                                if lolos:
+                                                    finalis.extend(lolos)
+                                                    st.write(f"➡️ Lolos ke Final: **{', '.join(lolos)}** *(via {model_tes})*")
+                                                else:
+                                                    st.write(f"➡️ AI menjawab ngawur. Grup dilewati. *(via {model_tes})*")
                                                 
                                             sukses = True
                                             
