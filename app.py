@@ -1224,11 +1224,30 @@ if not df_hasil.empty:
                     else:
                         import time
                         import json
+                        import os
                         from groq import Groq
                         
                         client = Groq(api_key=GROQ_API_KEY)
                         
-                        # 1. Tentukan Dataframe dan Nama File Output berdasarkan Dropdown
+                        # ==========================================
+                        # MEMBACA AMUNISI MODEL DARI FILE EKSTERNAL
+                        # ==========================================
+                        FILE_MODEL = "versigroq.txt"
+                        daftar_model_groq = []
+                        
+                        if os.path.exists(FILE_MODEL):
+                            with open(FILE_MODEL, "r") as f:
+                                # Membaca setiap baris, membuang spasi, dan mengabaikan baris kosong
+                                daftar_model_groq = [line.strip() for line in f if line.strip()]
+                        
+                        # Jika file versigroq.txt terhapus atau kosong, gunakan model cadangan darurat
+                        if not daftar_model_groq:
+                            st.warning(f"⚠️ File {FILE_MODEL} tidak ditemukan atau kosong. Menggunakan model bawaan.")
+                            daftar_model_groq = ["llama3-8b-8192", "mixtral-8x7b-32768"]
+                        else:
+                            st.info(f"✅ Berhasil memuat {len(daftar_model_groq)} amunisi model dari {FILE_MODEL}.")
+                        
+                        # 1. Tentukan Dataframe dan Nama File Output
                         df_target = pd.DataFrame()
                         file_output = ""
                         nama_rumus = ""
@@ -1249,12 +1268,11 @@ if not df_hasil.empty:
                             daftar_ticker = df_target['Ticker'].tolist()
                             st.success(f"Ditemukan {len(daftar_ticker)} saham. Memulai ekstraksi data historis untuk {nama_rumus}...")
                             
-                            # Ekstrak Sari Pati Arsip
                             data_sejarah_ai = ekstrak_sari_pati_arsip(daftar_ticker, df_hasil)
                             finalis = []
                             
                             # ==========================================
-                            # FASE 1: BABAK PENYISIHAN (10 SAHAM / GRUP / JEDA 1 MENIT)
+                            # FASE 1: BABAK PENYISIHAN (AUTO-HUNTING MODEL)
                             # ==========================================
                             if len(daftar_ticker) <= 5:
                                 st.info("Jumlah kandidat sedikit. Langsung menuju Grand Final!")
@@ -1263,7 +1281,6 @@ if not df_hasil.empty:
                                 st.markdown("#### ⚔️ Babak Penyisihan Dimulai")
                                 progress_bar = st.progress(0)
                                 
-                                # Dibagi menjadi 10 saham per grup
                                 chunk_size = 10
                                 chunks = [daftar_ticker[i:i + chunk_size] for i in range(0, len(daftar_ticker), chunk_size)]
                                 
@@ -1289,41 +1306,49 @@ if not df_hasil.empty:
                                     """
                                     
                                     sukses = False
-                                    percobaan = 0
-                                    while not sukses and percobaan < 3:
+                                    for model_tes in daftar_model_groq:
+                                        if sukses: break
+                                        
                                         try:
                                             res = client.chat.completions.create(
-                                                    model="llama-3.3-70b-versatile",
-                                                    messages=[{"role": "user", "content": prompt_penyisihan}],
-                                                    temperature=0.2,
-                                                    max_tokens=50,
-                                                )
+                                                model=model_tes,
+                                                messages=[{"role": "user", "content": prompt_penyisihan}],
+                                                temperature=0.2, max_tokens=50
+                                            )
                                             jawaban = res.choices[0].message.content.strip().upper()
+                                            
                                             if "KOSONG" not in jawaban:
                                                 lolos = [x.strip() for x in jawaban.split(',') if x.strip() in chunk]
                                                 finalis.extend(lolos)
-                                                st.write(f"➡️ Lolos ke Final: **{', '.join(lolos)}**")
+                                                st.write(f"➡️ Lolos ke Final: **{', '.join(lolos)}** *(via {model_tes})*")
                                             else:
-                                                st.write("➡️ Tidak ada yang lolos dari grup ini.")
+                                                st.write(f"➡️ Tidak ada yang lolos dari grup ini. *(via {model_tes})*")
+                                                
                                             sukses = True
+                                            
                                         except Exception as e:
-                                            percobaan += 1
                                             pesan_error = str(e)
-                                            if percobaan < 3:
-                                                st.warning(f"⚠️ **Limit Groq Terdeteksi!**\n\nRespon Server: `{pesan_error}`\n\nMencoba jeda 60 detik... (Percobaan {percobaan}/3)")
-                                                time.sleep(60)
+                                            if "404" in pesan_error or "model_not_found" in pesan_error:
+                                                st.warning(f"⚠️ Model `{model_tes}` tidak aktif (404). Melompat...")
+                                                time.sleep(1)
+                                            elif "429" in pesan_error:
+                                                st.warning(f"⚠️ Kuota limit di `{model_tes}` (429). Beralih ke model lain...")
+                                                time.sleep(2)
                                             else:
-                                                st.error(f"🚨 **Gagal memproses grup ini.**\nDetail Limit: `{pesan_error}`")
+                                                st.warning(f"⚠️ Error tak terduga di `{model_tes}`. Mencoba model lain...")
+                                                time.sleep(1)
+                                                
+                                    if not sukses:
+                                        st.error("🚨 Semua senjata model di versigroq.txt gagal atau limit habis! Grup ini dilewati.")
                                         
                                     progress_bar.progress((i + 1) / len(chunks))
                                     
-                                    # JEDA MUTLAK 60 DETIK ANTAR GRUP (Kecuali jika ini adalah grup terakhir)
                                     if i < len(chunks) - 1:
-                                        with st.spinner("⏳ Mendinginkan mesin (Jeda 60 detik) untuk menghindari limit Groq..."):
+                                        with st.spinner("⏳ Mendinginkan mesin (Jeda 60 detik)..."):
                                             time.sleep(60)
                                     
                             # ==========================================
-                            # FASE 2: GRAND FINAL & DISTRIBUSI FILE
+                            # FASE 2: GRAND FINAL (AUTO-HUNTING MODEL)
                             # ==========================================
                             st.markdown(f"#### 🏆 Grand Final {nama_rumus} (Mencetak Sinyal Auto-Trade)")
                             if not finalis:
@@ -1331,7 +1356,6 @@ if not df_hasil.empty:
                             else:
                                 st.write(f"Kandidat Final: {', '.join(finalis)}")
                                 
-                                # Berikan jeda 30 detik sebelum masuk Grand Final agar sisa kuota aman
                                 with st.spinner("⏳ Persiapan masuk Grand Final (Jeda 30 detik)..."):
                                     time.sleep(30)
                                 
@@ -1363,14 +1387,15 @@ if not df_hasil.empty:
                                 
                                 with st.spinner(f"AI sedang menyusun JSON untuk Bot {nama_rumus}..."):
                                     sukses_final = False
-                                    percobaan_final = 0
-                                    while not sukses_final and percobaan_final < 3:
+                                    
+                                    for model_tes in daftar_model_groq:
+                                        if sukses_final: break
+                                        
                                         try:
                                             res_final = client.chat.completions.create(
-                                                model="llama-3.3-70b-versatile",
+                                                model=model_tes,
                                                 messages=[{"role": "user", "content": prompt_final}],
-                                                temperature=0.3,
-                                                max_tokens=1000,
+                                                temperature=0.3, max_tokens=1000
                                             )
                                             
                                             jawaban_raw = res_final.choices[0].message.content
@@ -1381,11 +1406,10 @@ if not df_hasil.empty:
                                             
                                             with st.container():
                                                 st.markdown("---")
-                                                st.success(f"🎉 **Sinyal {nama_rumus} Berhasil Dicetak!**")
+                                                st.success(f"🎉 **Sinyal {nama_rumus} Berhasil Dicetak!** *(Model Pekerja: {model_tes})*")
                                                 st.table(df_tampil)
                                                 st.markdown("---")
                                                 
-                                            # EXPORT SINYAL SESUAI NAMA RUMUS AGAR DIBACA BOT
                                             df_sinyal = df_tampil[['Ticker', 'Target_TP', 'Target_CL']]
                                             df_sinyal.to_csv(file_output, index=False)
                                             
@@ -1393,13 +1417,16 @@ if not df_hasil.empty:
                                             sukses_final = True
                                             
                                         except Exception as e:
-                                            percobaan_final += 1
                                             pesan_error = str(e)
-                                            if percobaan_final < 3:
-                                                st.warning(f"⚠️ **Limit Groq di Grand Final!**\n\nRespon Server: `{pesan_error}`\n\nMencoba jeda 60 detik... (Percobaan {percobaan_final}/3)")
-                                                time.sleep(60)
-                                            else:
-                                                st.error(f"❌ **Gagal mencetak JSON.**\nDetail Limit: `{pesan_error}`")
+                                            if "404" in pesan_error or "model_not_found" in pesan_error:
+                                                st.warning(f"⚠️ Model `{model_tes}` tidak aktif (404). Melompat...")
+                                                time.sleep(1)
+                                            elif "429" in pesan_error:
+                                                st.warning(f"⚠️ Kuota limit di `{model_tes}` (429). Mencoba model lain...")
+                                                time.sleep(2)
+                                                
+                                    if not sukses_final:
+                                        st.error("❌ Terjadi kesalahan mencetak JSON di Grand Final. Semua model di versigroq.txt gagal/limit.")
 
         # ===============================================
         # TAB 6: DASHBOARD PORTOFOLIO SIMULASI AI
