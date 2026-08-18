@@ -1296,13 +1296,14 @@ if not df_hasil.empty:
                                         payload_grup += f"Jejak Historis: {data_sejarah_ai.get(tkr, 'Tidak ada data')}\n"
                                         
                                     prompt_penyisihan = f"""
-                                    Dari daftar saham berikut:
+                                    From the following list of stocks and their historical data:
                                     {payload_grup}
                                     
-                                    Pilih MAKSIMAL 3 SAHAM TERBAIK yang memiliki jejak akumulasi paling kuat untuk Day Trading besok.
-                                    Balas HANYA dengan Ticker saham yang lolos, pisahkan dengan koma.
-                                    Contoh balasan: VISI, PANI, GOTO
-                                    Jika tidak ada yang bagus, balas: KOSONG
+                                    YOUR MISSION:
+                                    Select a MAXIMUM of 3 BEST STOCKS that show the strongest accumulation footprint (Golden Time) for Day Trading tomorrow.
+                                    Reply ONLY with the Tickers of the selected stocks, separated by commas. Do not write any explanations, introductory text, or markdown.
+                                    Example reply: VISI, PANI, GOTO
+                                    If none of the stocks are good, reply EXACTLY with the word: KOSONG
                                     """
                                     
                                     sukses = False
