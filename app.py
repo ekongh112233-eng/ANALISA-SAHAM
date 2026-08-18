@@ -1237,15 +1237,11 @@ if not df_hasil.empty:
                         
                         if os.path.exists(FILE_MODEL):
                             with open(FILE_MODEL, "r") as f:
-                                # Membaca setiap baris, membuang spasi, dan mengabaikan baris kosong
                                 daftar_model_groq = [line.strip() for line in f if line.strip()]
                         
-                        # Jika file versigroq.txt terhapus atau kosong, gunakan model cadangan darurat
                         if not daftar_model_groq:
                             st.warning(f"⚠️ File {FILE_MODEL} tidak ditemukan atau kosong. Menggunakan model bawaan.")
                             daftar_model_groq = ["llama3-8b-8192", "mixtral-8x7b-32768"]
-                        else:
-                            st.info(f"✅ Berhasil memuat {len(daftar_model_groq)} amunisi model dari {FILE_MODEL}.")
                         
                         # 1. Tentukan Dataframe dan Nama File Output
                         df_target = pd.DataFrame()
@@ -1272,7 +1268,7 @@ if not df_hasil.empty:
                             finalis = []
                             
                             # ==========================================
-                            # FASE 1: BABAK PENYISIHAN (AUTO-HUNTING MODEL)
+                            # FASE 1: BABAK PENYISIHAN
                             # ==========================================
                             if len(daftar_ticker) <= 5:
                                 st.info("Jumlah kandidat sedikit. Langsung menuju Grand Final!")
@@ -1307,6 +1303,7 @@ if not df_hasil.empty:
                                     """
                                     
                                     sukses = False
+                                    pesan_error_terakhir = ""
                                     for model_tes in daftar_model_groq:
                                         if sukses: break
                                         
@@ -1329,18 +1326,17 @@ if not df_hasil.empty:
                                             
                                         except Exception as e:
                                             pesan_error = str(e)
+                                            pesan_error_terakhir = pesan_error
                                             if "404" in pesan_error or "model_not_found" in pesan_error:
                                                 st.warning(f"⚠️ Model `{model_tes}` tidak aktif (404). Melompat...")
-                                                time.sleep(1)
                                             elif "429" in pesan_error:
                                                 st.warning(f"⚠️ Kuota limit di `{model_tes}` (429). Beralih ke model lain...")
-                                                time.sleep(2)
                                             else:
-                                                st.warning(f"⚠️ Error tak terduga di `{model_tes}`. Mencoba model lain...")
+                                                st.error(f"🛑 ERROR ASLI dari {model_tes}:\n{pesan_error}")
                                                 time.sleep(1)
                                                 
                                     if not sukses:
-                                        st.error("🚨 Semua senjata model di versigroq.txt gagal atau limit habis! Grup ini dilewati.")
+                                        st.error(f"🚨 Semua model gagal! Error terakhir:\n`{pesan_error_terakhir}`")
                                         
                                     progress_bar.progress((i + 1) / len(chunks))
                                     
@@ -1349,7 +1345,7 @@ if not df_hasil.empty:
                                             time.sleep(60)
                                     
                             # ==========================================
-                            # FASE 2: GRAND FINAL (AUTO-HUNTING MODEL)
+                            # FASE 2: GRAND FINAL
                             # ==========================================
                             st.markdown(f"#### 🏆 Grand Final {nama_rumus} (Mencetak Sinyal Auto-Trade)")
                             if not finalis:
@@ -1388,6 +1384,7 @@ if not df_hasil.empty:
                                 
                                 with st.spinner(f"AI sedang menyusun JSON untuk Bot {nama_rumus}..."):
                                     sukses_final = False
+                                    pesan_error_final = ""
                                     
                                     for model_tes in daftar_model_groq:
                                         if sukses_final: break
@@ -1419,15 +1416,17 @@ if not df_hasil.empty:
                                             
                                         except Exception as e:
                                             pesan_error = str(e)
+                                            pesan_error_final = pesan_error
                                             if "404" in pesan_error or "model_not_found" in pesan_error:
                                                 st.warning(f"⚠️ Model `{model_tes}` tidak aktif (404). Melompat...")
-                                                time.sleep(1)
                                             elif "429" in pesan_error:
                                                 st.warning(f"⚠️ Kuota limit di `{model_tes}` (429). Mencoba model lain...")
-                                                time.sleep(2)
+                                            else:
+                                                st.error(f"🛑 ERROR ASLI dari {model_tes}:\n{pesan_error}")
+                                                time.sleep(1)
                                                 
                                     if not sukses_final:
-                                        st.error("❌ Terjadi kesalahan mencetak JSON di Grand Final. Semua model di versigroq.txt gagal/limit.")
+                                        st.error(f"❌ Terjadi kesalahan mencetak JSON di Grand Final. Error terakhir:\n`{pesan_error_final}`")
 
         # ===============================================
         # TAB 6: DASHBOARD PORTOFOLIO SIMULASI AI
