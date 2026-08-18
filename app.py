@@ -1229,12 +1229,8 @@ if not df_hasil.empty:
                         
                         client = Groq(api_key=GROQ_API_KEY)
                         
-                        # ==========================================
-                        # MENGUNCI MODEL PILIHAN TERBAIK (QWEN)
-                        # ==========================================
                         MODEL_ANDALAN = "qwen/qwen3.6-27b"
                         
-                        # 1. Tentukan Dataframe dan Nama File Output
                         df_target = pd.DataFrame()
                         file_output = ""
                         nama_rumus = ""
@@ -1259,7 +1255,7 @@ if not df_hasil.empty:
                             finalis = []
                             
                             # ==========================================
-                            # FASE 1: BABAK PENYISIHAN (POTONG KOMPAS JSON)
+                            # FASE 1: BABAK PENYISIHAN (ANTI-THINKING)
                             # ==========================================
                             if len(daftar_ticker) <= 5:
                                 st.info("Jumlah kandidat sedikit. Langsung menuju Grand Final!")
@@ -1304,35 +1300,41 @@ if not df_hasil.empty:
                                             res = client.chat.completions.create(
                                                 model=MODEL_ANDALAN,
                                                 messages=[{"role": "user", "content": prompt_penyisihan}],
-                                                temperature=0.1, max_tokens=2000 # <-- PERUBAHAN: Napas diperpanjang!
+                                                temperature=0.1, max_tokens=2000
                                             )
                                             jawaban_mentah = res.choices[0].message.content.strip()
                                             
-                                            # LOGIKA BARU: Potong Kompas (Abaikan <think>)
-                                            awal = jawaban_mentah.find('{')
-                                            akhir = jawaban_mentah.rfind('}')
+                                            # LOGIKA TEBAS OTAK: Buang bagian <think> jika ada
+                                            if "</think>" in jawaban_mentah:
+                                                teks_final = jawaban_mentah.split("</think>")[-1].strip()
+                                            else:
+                                                teks_final = jawaban_mentah
+                                            
+                                            awal = teks_final.find('{')
+                                            akhir = teks_final.rfind('}')
                                             
                                             if awal != -1 and akhir != -1:
-                                                bersih = jawaban_mentah[awal:akhir+1]
+                                                bersih = teks_final[awal:akhir+1]
                                             else:
-                                                bersih = '{"kandidat": []}' # Anggap kosong jika tidak ada kurung kurawal
+                                                bersih = '{"kandidat": []}'
                                             
                                             data_json = json.loads(bersih)
                                             lolos = data_json.get("kandidat", [])
                                             
-                                            # Validasi keamanan
                                             lolos_valid = [x for x in lolos if x in chunk]
                                             
                                             if lolos_valid:
                                                 finalis.extend(lolos_valid)
                                                 st.write(f"➡️ Lolos ke Final: **{', '.join(lolos_valid)}**")
                                             else:
-                                                st.write("➡️ Tidak ada yang lolos (Array JSON Kosong).")
+                                                st.write("➡️ Tidak ada yang lolos (Kosong).")
                                                 
                                             sukses = True
                                             
                                         except json.JSONDecodeError:
-                                            st.warning(f"⚠️ Percobaan {percobaan}: Gagal mengekstrak JSON. Mengulang...")
+                                            st.warning(f"⚠️ Percobaan {percobaan}: Gagal ekstrak JSON. Mengulang...")
+                                            with st.expander("Lihat Teks yang Bikin Error"):
+                                                st.code(teks_final) # Tampilkan teks yang bikin error
                                             time.sleep(2)
                                         except Exception as e:
                                             pesan_error = str(e)
@@ -1344,7 +1346,7 @@ if not df_hasil.empty:
                                                 time.sleep(2)
                                                 
                                     if not sukses:
-                                        st.error("🚨 Gagal mengekstrak data dari grup ini setelah 3x percobaan.")
+                                        st.error("🚨 Gagal mengekstrak data dari grup ini.")
                                         
                                     progress_bar.progress((i + 1) / len(chunks))
                                     
@@ -1353,7 +1355,7 @@ if not df_hasil.empty:
                                             time.sleep(15)
                                     
                             # ==========================================
-                            # FASE 2: GRAND FINAL (POTONG KOMPAS ARRAY)
+                            # FASE 2: GRAND FINAL (ANTI-THINKING ARRAY)
                             # ==========================================
                             st.markdown(f"#### 🏆 Grand Final {nama_rumus}")
                             if not finalis:
@@ -1402,17 +1404,22 @@ if not df_hasil.empty:
                                             res_final = client.chat.completions.create(
                                                 model=MODEL_ANDALAN,
                                                 messages=[{"role": "user", "content": prompt_final}],
-                                                temperature=0.2, max_tokens=2500 # <-- PERUBAHAN: Grand Final butuh token ekstra
+                                                temperature=0.2, max_tokens=2500
                                             )
                                             
                                             jawaban_raw = res_final.choices[0].message.content.strip()
                                             
-                                            # LOGIKA BARU: Potong Kompas Array (Abaikan <think>)
-                                            awal = jawaban_raw.find('[')
-                                            akhir = jawaban_raw.rfind(']')
+                                            # LOGIKA TEBAS OTAK GRAND FINAL
+                                            if "</think>" in jawaban_raw:
+                                                teks_final_gf = jawaban_raw.split("</think>")[-1].strip()
+                                            else:
+                                                teks_final_gf = jawaban_raw
+                                            
+                                            awal = teks_final_gf.find('[')
+                                            akhir = teks_final_gf.rfind(']')
                                             
                                             if awal != -1 and akhir != -1:
-                                                bersih = jawaban_raw[awal:akhir+1]
+                                                bersih = teks_final_gf[awal:akhir+1]
                                             else:
                                                 bersih = "[]"
                                             
@@ -1433,7 +1440,7 @@ if not df_hasil.empty:
                                             sukses_final = True
                                             
                                         except json.JSONDecodeError:
-                                            st.warning(f"⚠️ JSON dari Qwen tidak valid. Mengulang (Percobaan {percobaan_final}/3)...")
+                                            st.warning(f"⚠️ JSON tidak valid. Mengulang (Percobaan {percobaan_final}/3)...")
                                             time.sleep(2)
                                         except Exception as e:
                                             pesan_error = str(e)
