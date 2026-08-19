@@ -647,6 +647,9 @@ def main():
                         volume=row['Volume'], 
                         waktu_obj=now
                     )
+                
+                # 1b. Simpan Backup Harian (HANYA SENIN - JUMAT)
+                df_hasil.to_csv(file_arsip_harian, index=False)
                 print(f"✅ Selesai! Data Web diperbarui & Diarsipkan ke sistem 3 Folder (Arsip_Data_Saham).")
                 
             # Jika hari Sabtu atau Minggu
@@ -662,11 +665,11 @@ def main():
         import glob
         try:
             arsip_files = glob.glob(os.path.join(DIR_ARSIP, "screener_*.csv"))
-            if len(arsip_files) > 6:
+            if len(arsip_files) > 5: # <-- UBAH JADI 5 (Maksimal 5 hari)
                 # Urutkan dari yang paling baru ke paling lama
                 arsip_files.sort(reverse=True)
-                # Ambil file ke-7 dan seterusnya untuk dihapus
-                file_usang = arsip_files[6:]
+                # Ambil file ke-6 dan seterusnya untuk dihapus
+                file_usang = arsip_files[5:] # <-- UBAH JADI 5
                 for f in file_usang:
                     os.remove(f)
                     print(f"🗑️ Membersihkan arsip lama: {f}")
