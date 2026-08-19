@@ -1258,7 +1258,7 @@ if not df_hasil.empty:
                             data_sejarah_ai = ekstrak_sari_pati_arsip(daftar_ticker, df_hasil)
                             
                             # ==========================================
-                            # MESIN PENYISIHAN (BISA DIPAKAI BERKALI-KALI)
+                            # MESIN PENYISIHAN (DENGAN REM CERDAS 60 DETIK)
                             # ==========================================
                             def jalankan_seleksi(daftar_kandidat, nama_tahap):
                                 lolos_tahap_ini = []
@@ -1301,12 +1301,10 @@ if not df_hasil.empty:
                                             res = client.chat.completions.create(
                                                 model=MODEL_ANDALAN,
                                                 messages=[{"role": "user", "content": prompt_penyisihan}],
-                                                temperature=0.1, 
-                                                max_tokens=1500 # <-- UBAH: Turunkan dari 2000 ke 1500 agar irit
+                                                temperature=0.1, max_tokens=1500 # Irit napas
                                             )
                                             jawaban_mentah = res.choices[0].message.content.strip()
                                             
-                                            # LOGIKA TEBAS OTAK
                                             if "</think>" in jawaban_mentah:
                                                 teks_final = jawaban_mentah.split("</think>")[-1].strip()
                                             else:
@@ -1323,7 +1321,6 @@ if not df_hasil.empty:
                                             data_json = json.loads(bersih)
                                             lolos = data_json.get("kandidat", [])
                                             
-                                            # Validasi keamanan
                                             lolos_valid = [x for x in lolos if x in chunk]
                                             
                                             if lolos_valid:
@@ -1338,18 +1335,19 @@ if not df_hasil.empty:
                                             st.warning(f"⚠️ Gagal ekstrak JSON. Mengulang (Percobaan {percobaan}/3)...")
                                             time.sleep(2)
                                         except Exception as e:
-                                            pesan_error = str(e)
-                                            if "429" in pesan_error:
-                                                st.warning(f"⚠️ Limit API (429). Jeda 10 detik...")
-                                                time.sleep(10)
+                                            pesan_error = str(e).lower()
+                                            # LOGIKA REM CERDAS (429 atau 413)
+                                            if "429" in pesan_error or "413" in pesan_error or "rate_limit" in pesan_error or "tokens" in pesan_error:
+                                                st.warning(f"⚠️ Terkena Limit (Groq Kelelahan). Sistem mengaktifkan Mode Tidur 60 detik... 💤")
+                                                time.sleep(60) # Tidur 1 menit penuh
                                             else:
-                                                st.error(f"🛑 ERROR ASLI:\n{pesan_error}")
-                                                time.sleep(2)
+                                                st.error(f"🛑 ERROR ASLI:\n{str(e)}")
+                                                time.sleep(5)
                                                 
                                     progress_bar.progress((i + 1) / len(chunks))
                                     if i < len(chunks) - 1:
-                                        with st.spinner("⏳ Jeda pendingin (25 detik) agar tidak kena limit..."):
-                                            time.sleep(25) # <-- UBAH: Naikkan dari 12 ke 25 detik
+                                        with st.spinner("⏳ Jeda normal 20 detik antar grup..."):
+                                            time.sleep(20)
                                             
                                 return lolos_tahap_ini
 
@@ -1361,10 +1359,8 @@ if not df_hasil.empty:
                                 st.info("Jumlah kandidat sedikit. Langsung menuju Grand Final!")
                                 finalis = daftar_ticker
                             else:
-                                # TAHAP 1
                                 kandidat_lolos_1 = jalankan_seleksi(daftar_ticker, "Babak Penyisihan Tahap 1")
                                 
-                                # TAHAP 2 (SEMIFINAL - Sesuai Ide Anda)
                                 if len(kandidat_lolos_1) > 15:
                                     st.info(f"🔥 Ada {len(kandidat_lolos_1)} saham lolos. Memasuki Babak Semifinal untuk penyaringan lebih ketat!")
                                     finalis = jalankan_seleksi(kandidat_lolos_1, "Babak Semifinal (Tahap 2)")
@@ -1372,7 +1368,7 @@ if not df_hasil.empty:
                                     finalis = kandidat_lolos_1
 
                             # ==========================================
-                            # FASE 3: GRAND FINAL (ANTI-THINKING ARRAY)
+                            # FASE 3: GRAND FINAL (WAJIB TIDUR 60 DETIK SEBELUMNYA)
                             # ==========================================
                             st.markdown(f"#### 🏆 Grand Final {nama_rumus}")
                             if not finalis:
@@ -1380,8 +1376,9 @@ if not df_hasil.empty:
                             else:
                                 st.write(f"Kandidat Final: {', '.join(finalis)}")
                                 
-                                with st.spinner("⏳ Persiapan masuk Grand Final (Jeda 40 detik untuk reset kuota API)..."):
-                                    time.sleep(40) # <-- UBAH: Naikkan dari 10 ke 40 detik
+                                # TIDUR 1 MENIT PENUH AGAR KUOTA RESET SEBELUM GRAND FINAL
+                                with st.spinner("⏳ Persiapan masuk Grand Final (Tidur 60 detik untuk reset 100% kuota API)..."):
+                                    time.sleep(60)
                                 
                                 payload_final = ""
                                 for tkr in finalis:
@@ -1421,13 +1418,11 @@ if not df_hasil.empty:
                                             res_final = client.chat.completions.create(
                                                 model=MODEL_ANDALAN,
                                                 messages=[{"role": "user", "content": prompt_final}],
-                                                temperature=0.2, 
-                                                max_tokens=2000 # <-- UBAH: Turunkan dari 3500 ke 2000
+                                                temperature=0.2, max_tokens=2000
                                             )
                                             
                                             jawaban_raw = res_final.choices[0].message.content.strip()
                                             
-                                            # LOGIKA TEBAS OTAK GRAND FINAL
                                             if "</think>" in jawaban_raw:
                                                 teks_final_gf = jawaban_raw.split("</think>")[-1].strip()
                                             else:
@@ -1468,12 +1463,12 @@ if not df_hasil.empty:
                                             st.warning(f"⚠️ {ve} Mengulang (Percobaan {percobaan_final}/3)...")
                                             time.sleep(2)
                                         except Exception as e:
-                                            pesan_error = str(e)
-                                            if "413" in pesan_error or "tokens" in pesan_error:
-                                                st.error("🛑 Limit Token (413). Tunggu 30 detik untuk *cooldown*...")
-                                                time.sleep(30)
+                                            pesan_error = str(e).lower()
+                                            if "429" in pesan_error or "413" in pesan_error or "rate_limit" in pesan_error or "tokens" in pesan_error:
+                                                st.warning("⚠️ Terkena Limit (Groq Kelelahan). Sistem mengaktifkan Mode Tidur 60 detik... 💤")
+                                                time.sleep(60)
                                             else:
-                                                st.error(f"🛑 ERROR ASLI:\n{pesan_error}")
+                                                st.error(f"🛑 ERROR ASLI:\n{str(e)}")
                                                 time.sleep(5)
                                                 
                                     if not sukses_final:
