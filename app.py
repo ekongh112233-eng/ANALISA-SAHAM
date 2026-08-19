@@ -1235,15 +1235,15 @@ if not df_hasil.empty:
                         file_output = ""
                         nama_rumus = ""
                         
-                        if "Rumus 1" in pilih_rumus_ai: df_target, file_output, nama_rumus = df_v1, "sinyal_ai_rumus_1.csv", "Rumus 1"
-                        elif "Rumus 2" in pilih_rumus_ai: df_target, file_output, nama_rumus = df_v2, "sinyal_ai_rumus_2.csv", "Rumus 2"
-                        elif "Rumus 3" in pilih_rumus_ai: df_target, file_output, nama_rumus = df_v3, "sinyal_ai_rumus_3.csv", "Rumus 3"
-                        elif "Rumus 4" in pilih_rumus_ai: df_target, file_output, nama_rumus = df_v4, "sinyal_ai_rumus_4.csv", "Rumus 4"
-                        elif "Rumus 5" in pilih_rumus_ai: df_target, file_output, nama_rumus = df_v5, "sinyal_ai_rumus_5.csv", "Rumus 5"
-                        elif "Rumus 6" in pilih_rumus_ai: df_target, file_output, nama_rumus = df_v6, "sinyal_ai_rumus_6.csv", "Rumus 6"
-                        elif "Rumus 7" in pilih_rumus_ai: df_target, file_output, nama_rumus = df_v7, "sinyal_ai_rumus_7.csv", "Rumus 7"
-                        elif "Rumus 8" in pilih_rumus_ai: df_target, file_output, nama_rumus = df_v8, "sinyal_ai_rumus_8.csv", "Rumus 8"
-                        elif "Rumus 9" in pilih_rumus_ai: df_target, file_output, nama_rumus = df_v9, "sinyal_ai_rumus_9.csv", "Rumus 9"
+                        if "Rumus 1" in pilih_rumus_ai: df_target, file_output, nama_rumus = df_v1, "Database/sinyal_ai_rumus_1.csv", "Rumus 1"
+                        elif "Rumus 2" in pilih_rumus_ai: df_target, file_output, nama_rumus = df_v2, "Database/sinyal_ai_rumus_2.csv", "Rumus 2"
+                        elif "Rumus 3" in pilih_rumus_ai: df_target, file_output, nama_rumus = df_v3, "Database/sinyal_ai_rumus_3.csv", "Rumus 3"
+                        elif "Rumus 4" in pilih_rumus_ai: df_target, file_output, nama_rumus = df_v4, "Database/sinyal_ai_rumus_4.csv", "Rumus 4"
+                        elif "Rumus 5" in pilih_rumus_ai: df_target, file_output, nama_rumus = df_v5, "Database/sinyal_ai_rumus_5.csv", "Rumus 5"
+                        elif "Rumus 6" in pilih_rumus_ai: df_target, file_output, nama_rumus = df_v6, "Database/sinyal_ai_rumus_6.csv", "Rumus 6"
+                        elif "Rumus 7" in pilih_rumus_ai: df_target, file_output, nama_rumus = df_v7, "Database/sinyal_ai_rumus_7.csv", "Rumus 7"
+                        elif "Rumus 8" in pilih_rumus_ai: df_target, file_output, nama_rumus = df_v8, "Database/sinyal_ai_rumus_8.csv", "Rumus 8"
+                        elif "Rumus 9" in pilih_rumus_ai: df_target, file_output, nama_rumus = df_v9, "Database/sinyal_ai_rumus_9.csv", "Rumus 9"
                         
                         if df_target.empty:
                             st.warning(f"⚠️ Belum ada saham yang lolos di {nama_rumus} hari ini.")

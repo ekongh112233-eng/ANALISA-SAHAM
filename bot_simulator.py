@@ -9,14 +9,15 @@ MODAL_AWAL = 100000000.0  # Rp 100 Juta per Rumus
 FEE_BELI = 0.0015         # 0.15%
 FEE_JUAL = 0.0025         # 0.25%
 FILE_MARKET = "Database/hasil_screener.csv"
+DIR_DB = "Database"       # <-- PUSAT PENYIMPANAN BARU
 
 # ==========================================
 # 🛠️ FUNGSI PEMBANTU
 # ==========================================
 def inisialisasi_database(rumus_id):
-    """Membuat file database untuk masing-masing rumus jika belum ada"""
-    file_porto = f"portofolio_virtual_rumus_{rumus_id}.csv"
-    file_hist = f"history_trade_rumus_{rumus_id}.csv"
+    """Membuat file database di dalam folder Database jika belum ada"""
+    file_porto = os.path.join(DIR_DB, f"portofolio_virtual_rumus_{rumus_id}.csv")
+    file_hist = os.path.join(DIR_DB, f"history_trade_rumus_{rumus_id}.csv")
     
     if not os.path.exists(file_porto):
         df_porto = pd.DataFrame(columns=['Tanggal_Beli', 'Ticker', 'Harga_Beli', 'Lot', 'Total_Modal', 'Target_TP', 'Target_CL'])
@@ -67,7 +68,9 @@ def jalankan_bot():
     # 3. LOOPING UNTUK KE-9 RUMUS/ARENA
     for i in range(1, 10):
         file_porto, file_hist = inisialisasi_database(i)
-        file_sinyal = f"sinyal_ai_rumus_{i}.csv"
+        
+        # TARGET SINYAL SEKARANG DIAMBIL DARI FOLDER DATABASE
+        file_sinyal = os.path.join(DIR_DB, f"sinyal_ai_rumus_{i}.csv")
         
         df_porto = pd.read_csv(file_porto)
         df_history = pd.read_csv(file_hist)
@@ -143,7 +146,6 @@ def jalankan_bot():
         # ==========================================
         # FASE B: MODE BELI (HANYA JIKA BELUM JAM 15:30)
         # ==========================================
-        # Robot DILARANG membeli saham baru jika sudah masuk waktu Square-Off (>= 15:30)
         if os.path.exists(file_sinyal):
             if not is_square_off_time:
                 saldo_sekarang = cek_saldo_tersedia(df_porto)
@@ -160,7 +162,7 @@ def jalankan_bot():
                     except:
                         continue
                     
-                    # Alokasi Maksimal Rp 20 Juta per Saham (Agar Modal 100 Juta Cukup untuk 5 Saham)
+                    # Alokasi Maksimal Rp 20 Juta per Saham
                     alokasi_dana = min(20000000, saldo_sekarang)
                     
                     if alokasi_dana >= (harga_beli * 100 * 1.0015): 
@@ -182,7 +184,7 @@ def jalankan_bot():
                         print(f"🛒 [RUMUS {i}] BELI: {ticker} @ Rp {harga_beli} | {jumlah_lot} Lot")
                         ada_transaksi = True
 
-            # Kertas belanja WAJIB dihapus agar besok/ronde selanjutnya tidak dibeli lagi
+            # Kertas belanja WAJIB dihapus agar besok tidak dibeli lagi
             os.remove(file_sinyal)
 
         # 4. SIMPAN PERUBAHAN KE DATABASE JIKA ADA TRANSAKSI
