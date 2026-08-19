@@ -1265,7 +1265,7 @@ if not df_hasil.empty:
                                 st.markdown(f"#### ⚔️ {nama_tahap}")
                                 progress_bar = st.progress(0)
                                 
-                                chunk_size = 6 # <-- UBAH: Hanya 6 saham per grup agar irit token!
+                                chunk_size = 6 # Hanya 6 saham per grup agar irit token!
                                 chunks = [daftar_kandidat[i:i + chunk_size] for i in range(0, len(daftar_kandidat), chunk_size)]
                                 
                                 for i, chunk in enumerate(chunks):
@@ -1301,7 +1301,7 @@ if not df_hasil.empty:
                                             res = client.chat.completions.create(
                                                 model=MODEL_ANDALAN,
                                                 messages=[{"role": "user", "content": prompt_penyisihan}],
-                                                temperature=0.1, max_tokens=1000 # Napas kecil karena data sedikit
+                                                temperature=0.1, max_tokens=1500 # Angka emas untuk penyisihan
                                             )
                                             jawaban_mentah = res.choices[0].message.content.strip()
                                             
@@ -1335,17 +1335,23 @@ if not df_hasil.empty:
                                             st.warning(f"⚠️ Gagal ekstrak JSON. Mengulang (Percobaan {percobaan}/3)...")
                                             time.sleep(2)
                                         except Exception as e:
-                                            pesan_error = str(e).lower()
-                                            if "429" in pesan_error or "413" in pesan_error or "rate_limit" in pesan_error or "tokens" in pesan_error:
-                                                st.warning(f"⚠️ Terkena Limit (Groq Kelelahan). Sistem mengaktifkan Mode Tidur 60 detik... 💤")
-                                                time.sleep(60)
+                                            pesan_error = str(e)
+                                            if "429" in pesan_error.lower() or "413" in pesan_error.lower() or "tokens" in pesan_error.lower():
+                                                st.error(f"🛑 **Tembok Limit Groq Tertabrak!**\n\nDetail Token: `{pesan_error}`")
+                                                
+                                                # FITUR BARU: ANIMASI HITUNG MUNDUR (COUNTDOWN)
+                                                layar_mundur = st.empty()
+                                                for detik in range(60, 0, -1):
+                                                    layar_mundur.warning(f"💤 Mode Pemulihan Kuota. AI akan bangkit dalam **{detik} detik...** ⏳")
+                                                    time.sleep(1)
+                                                layar_mundur.empty() # Bersihkan layar setelah selesai
                                             else:
-                                                st.error(f"🛑 ERROR ASLI:\n{str(e)}")
+                                                st.error(f"🛑 ERROR ASLI:\n{pesan_error}")
                                                 time.sleep(5)
                                                 
                                     progress_bar.progress((i + 1) / len(chunks))
                                     if i < len(chunks) - 1:
-                                        with st.spinner("⏳ Jeda normal 15 detik antar grup..."):
+                                        with st.spinner("⏳ Jeda pendingin 15 detik..."):
                                             time.sleep(15)
                                             
                                 return lolos_tahap_ini
@@ -1356,13 +1362,11 @@ if not df_hasil.empty:
                             kandidat_sekarang = daftar_ticker
                             ronde = 1
                             
-                            # LOOPING: Terus adu sampai sisa saham 9 atau kurang
                             while len(kandidat_sekarang) > 9:
                                 st.info(f"🔥 Memulai Putaran {ronde} dengan {len(kandidat_sekarang)} saham...")
                                 kandidat_sekarang = jalankan_seleksi(kandidat_sekarang, f"Babak Penyisihan - Putaran {ronde}")
                                 ronde += 1
                                 
-                                # Jika AI membantai semua saham sampai habis
                                 if not kandidat_sekarang:
                                     st.warning("Semua saham berguguran di putaran ini.")
                                     break
@@ -1378,8 +1382,12 @@ if not df_hasil.empty:
                             else:
                                 st.write(f"Kandidat Final ({len(finalis)} saham): {', '.join(finalis)}")
                                 
-                                with st.spinner("⏳ Persiapan masuk Grand Final (Tidur 45 detik untuk reset 100% kuota API)..."):
-                                    time.sleep(45)
+                                # HITUNG MUNDUR WAJIB SEBELUM GRAND FINAL (45 DETIK)
+                                layar_mundur_gf = st.empty()
+                                for detik in range(45, 0, -1):
+                                    layar_mundur_gf.info(f"⏳ Mengamankan kuota 100% untuk Grand Final... Bersiap dalam **{detik} detik** 🚀")
+                                    time.sleep(1)
+                                layar_mundur_gf.empty()
                                 
                                 payload_final = ""
                                 for tkr in finalis:
@@ -1419,7 +1427,7 @@ if not df_hasil.empty:
                                             res_final = client.chat.completions.create(
                                                 model=MODEL_ANDALAN,
                                                 messages=[{"role": "user", "content": prompt_final}],
-                                                temperature=0.2, max_tokens=1500
+                                                temperature=0.2, max_tokens=2500 # Angka emas untuk Grand Final
                                             )
                                             
                                             jawaban_raw = res_final.choices[0].message.content.strip()
@@ -1464,12 +1472,16 @@ if not df_hasil.empty:
                                             st.warning(f"⚠️ {ve} Mengulang (Percobaan {percobaan_final}/3)...")
                                             time.sleep(2)
                                         except Exception as e:
-                                            pesan_error = str(e).lower()
-                                            if "429" in pesan_error or "413" in pesan_error or "rate_limit" in pesan_error or "tokens" in pesan_error:
-                                                st.warning("⚠️ Terkena Limit (Groq Kelelahan). Sistem mengaktifkan Mode Tidur 60 detik... 💤")
-                                                time.sleep(60)
+                                            pesan_error = str(e)
+                                            if "429" in pesan_error.lower() or "413" in pesan_error.lower() or "tokens" in pesan_error.lower():
+                                                st.error(f"🛑 **Tembok Limit Groq Tertabrak!**\n\nDetail Token: `{pesan_error}`")
+                                                layar_mundur = st.empty()
+                                                for detik in range(60, 0, -1):
+                                                    layar_mundur.warning(f"💤 Mode Pemulihan Kuota. AI akan bangkit dalam **{detik} detik...** ⏳")
+                                                    time.sleep(1)
+                                                layar_mundur.empty()
                                             else:
-                                                st.error(f"🛑 ERROR ASLI:\n{str(e)}")
+                                                st.error(f"🛑 ERROR ASLI:\n{pesan_error}")
                                                 time.sleep(5)
                                                 
                                     if not sukses_final:
