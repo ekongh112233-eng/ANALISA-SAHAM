@@ -1258,14 +1258,14 @@ if not df_hasil.empty:
                             data_sejarah_ai = ekstrak_sari_pati_arsip(daftar_ticker, df_hasil)
                             
                             # ==========================================
-                            # MESIN PENYISIHAN (DENGAN REM CERDAS 60 DETIK)
+                            # MESIN PENYISIHAN (GRUP KECIL ISI 6 SAHAM)
                             # ==========================================
                             def jalankan_seleksi(daftar_kandidat, nama_tahap):
                                 lolos_tahap_ini = []
                                 st.markdown(f"#### ⚔️ {nama_tahap}")
                                 progress_bar = st.progress(0)
                                 
-                                chunk_size = 10
+                                chunk_size = 6 # <-- UBAH: Hanya 6 saham per grup agar irit token!
                                 chunks = [daftar_kandidat[i:i + chunk_size] for i in range(0, len(daftar_kandidat), chunk_size)]
                                 
                                 for i, chunk in enumerate(chunks):
@@ -1284,7 +1284,7 @@ if not df_hasil.empty:
                                     {payload_grup}
                                     
                                     MISSION:
-                                    Select MAXIMUM 3 stocks with the strongest accumulation potential for tomorrow.
+                                    Select MAXIMUM 2 stocks with the strongest accumulation potential for tomorrow.
                                     
                                     STRICT RULE:
                                     You MUST reply ONLY with a valid JSON object containing a single key "kandidat" with a list of strings as its value.
@@ -1301,7 +1301,7 @@ if not df_hasil.empty:
                                             res = client.chat.completions.create(
                                                 model=MODEL_ANDALAN,
                                                 messages=[{"role": "user", "content": prompt_penyisihan}],
-                                                temperature=0.1, max_tokens=1500 # Irit napas
+                                                temperature=0.1, max_tokens=1000 # Napas kecil karena data sedikit
                                             )
                                             jawaban_mentah = res.choices[0].message.content.strip()
                                             
@@ -1336,49 +1336,50 @@ if not df_hasil.empty:
                                             time.sleep(2)
                                         except Exception as e:
                                             pesan_error = str(e).lower()
-                                            # LOGIKA REM CERDAS (429 atau 413)
                                             if "429" in pesan_error or "413" in pesan_error or "rate_limit" in pesan_error or "tokens" in pesan_error:
                                                 st.warning(f"⚠️ Terkena Limit (Groq Kelelahan). Sistem mengaktifkan Mode Tidur 60 detik... 💤")
-                                                time.sleep(60) # Tidur 1 menit penuh
+                                                time.sleep(60)
                                             else:
                                                 st.error(f"🛑 ERROR ASLI:\n{str(e)}")
                                                 time.sleep(5)
                                                 
                                     progress_bar.progress((i + 1) / len(chunks))
                                     if i < len(chunks) - 1:
-                                        with st.spinner("⏳ Jeda normal 20 detik antar grup..."):
-                                            time.sleep(20)
+                                        with st.spinner("⏳ Jeda normal 15 detik antar grup..."):
+                                            time.sleep(15)
                                             
                                 return lolos_tahap_ini
 
                             # ==========================================
-                            # ALUR TURNAMEN (PENYISIHAN 1 & SEMIFINAL)
+                            # ALUR TURNAMEN (LOOPING SISTEM GUGUR)
                             # ==========================================
-                            finalis = []
-                            if len(daftar_ticker) <= 5:
-                                st.info("Jumlah kandidat sedikit. Langsung menuju Grand Final!")
-                                finalis = daftar_ticker
-                            else:
-                                kandidat_lolos_1 = jalankan_seleksi(daftar_ticker, "Babak Penyisihan Tahap 1")
+                            kandidat_sekarang = daftar_ticker
+                            ronde = 1
+                            
+                            # LOOPING: Terus adu sampai sisa saham 9 atau kurang
+                            while len(kandidat_sekarang) > 9:
+                                st.info(f"🔥 Memulai Putaran {ronde} dengan {len(kandidat_sekarang)} saham...")
+                                kandidat_sekarang = jalankan_seleksi(kandidat_sekarang, f"Babak Penyisihan - Putaran {ronde}")
+                                ronde += 1
                                 
-                                if len(kandidat_lolos_1) > 15:
-                                    st.info(f"🔥 Ada {len(kandidat_lolos_1)} saham lolos. Memasuki Babak Semifinal untuk penyaringan lebih ketat!")
-                                    finalis = jalankan_seleksi(kandidat_lolos_1, "Babak Semifinal (Tahap 2)")
-                                else:
-                                    finalis = kandidat_lolos_1
+                                # Jika AI membantai semua saham sampai habis
+                                if not kandidat_sekarang:
+                                    st.warning("Semua saham berguguran di putaran ini.")
+                                    break
+                                    
+                            finalis = kandidat_sekarang
 
                             # ==========================================
-                            # FASE 3: GRAND FINAL (WAJIB TIDUR 60 DETIK SEBELUMNYA)
+                            # FASE 3: GRAND FINAL (SISA 5-9 SAHAM)
                             # ==========================================
                             st.markdown(f"#### 🏆 Grand Final {nama_rumus}")
                             if not finalis:
                                 st.warning("Tidak ada saham yang lolos ke Grand Final. Pasar mungkin sedang buruk.")
                             else:
-                                st.write(f"Kandidat Final: {', '.join(finalis)}")
+                                st.write(f"Kandidat Final ({len(finalis)} saham): {', '.join(finalis)}")
                                 
-                                # TIDUR 1 MENIT PENUH AGAR KUOTA RESET SEBELUM GRAND FINAL
-                                with st.spinner("⏳ Persiapan masuk Grand Final (Tidur 60 detik untuk reset 100% kuota API)..."):
-                                    time.sleep(60)
+                                with st.spinner("⏳ Persiapan masuk Grand Final (Tidur 45 detik untuk reset 100% kuota API)..."):
+                                    time.sleep(45)
                                 
                                 payload_final = ""
                                 for tkr in finalis:
@@ -1418,7 +1419,7 @@ if not df_hasil.empty:
                                             res_final = client.chat.completions.create(
                                                 model=MODEL_ANDALAN,
                                                 messages=[{"role": "user", "content": prompt_final}],
-                                                temperature=0.2, max_tokens=2000
+                                                temperature=0.2, max_tokens=1500
                                             )
                                             
                                             jawaban_raw = res_final.choices[0].message.content.strip()
