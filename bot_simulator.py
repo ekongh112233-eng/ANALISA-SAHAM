@@ -8,7 +8,7 @@ from datetime import datetime
 MODAL_AWAL = 100000000.0  # Rp 100 Juta per Rumus
 FEE_BELI = 0.0015         # 0.15%
 FEE_JUAL = 0.0025         # 0.25%
-FILE_MARKET = "hasil_screener.csv"
+FILE_MARKET = "Database/hasil_screener.csv"
 
 # ==========================================
 # 🛠️ FUNGSI PEMBANTU

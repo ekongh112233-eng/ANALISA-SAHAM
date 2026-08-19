@@ -52,8 +52,8 @@ def simpan_arsip_ke_folder_kelas(ticker, harga_rp, volume, waktu_obj):
 # ==========================================
 # SECTION 1: KONFIGURASI & TOKEN CURIAN BROKSUM
 # ==========================================
-FILE_SAHAM = "saham.txt"
-FILE_HASIL = "hasil_screener.csv"
+FILE_SAHAM = "Konfigurasi/saham.txt"
+FILE_HASIL = "Database/hasil_screener.csv"
 LOCK_FILE = "sedang_update.lock"
 DIR_ARSIP = "Arsip_Data_Harian"
 

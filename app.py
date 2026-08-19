@@ -137,9 +137,9 @@ st.markdown("""
 # ==========================================
 FILE_CONFIG = "config_web.json"
 FILE_PRESET = "preset_kustom.json"
-FILE_KAMUS = "kamus_edukasi.json"
-FILE_HASIL = "hasil_screener.csv"
-FILE_AKUISISI = "data_akuisisi.csv"
+FILE_KAMUS = "Konfigurasi/kamus_edukasi.json"
+FILE_HASIL = "Database/hasil_screener.csv"
+FILE_AKUISISI = "Database/data_akuisisi.csv"
 
 DEFAULT_CONFIG = {
     "MASTER_FILTERS": {
