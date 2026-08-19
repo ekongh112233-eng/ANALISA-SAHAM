@@ -1300,7 +1300,7 @@ if not df_hasil.empty:
                                             res = client.chat.completions.create(
                                                 model=MODEL_ANDALAN,
                                                 messages=[{"role": "user", "content": prompt_penyisihan}],
-                                                temperature=0.1, max_tokens=2000
+                                                temperature=0.1, max_tokens=2500
                                             )
                                             jawaban_mentah = res.choices[0].message.content.strip()
                                             
