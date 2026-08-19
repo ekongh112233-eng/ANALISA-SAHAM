@@ -1301,7 +1301,8 @@ if not df_hasil.empty:
                                             res = client.chat.completions.create(
                                                 model=MODEL_ANDALAN,
                                                 messages=[{"role": "user", "content": prompt_penyisihan}],
-                                                temperature=0.1, max_tokens=2000
+                                                temperature=0.1, 
+                                                max_tokens=1500 # <-- UBAH: Turunkan dari 2000 ke 1500 agar irit
                                             )
                                             jawaban_mentah = res.choices[0].message.content.strip()
                                             
@@ -1347,8 +1348,8 @@ if not df_hasil.empty:
                                                 
                                     progress_bar.progress((i + 1) / len(chunks))
                                     if i < len(chunks) - 1:
-                                        with st.spinner("⏳ Jeda pendingin..."):
-                                            time.sleep(12)
+                                        with st.spinner("⏳ Jeda pendingin (25 detik) agar tidak kena limit..."):
+                                            time.sleep(25) # <-- UBAH: Naikkan dari 12 ke 25 detik
                                             
                                 return lolos_tahap_ini
 
@@ -1379,8 +1380,8 @@ if not df_hasil.empty:
                             else:
                                 st.write(f"Kandidat Final: {', '.join(finalis)}")
                                 
-                                with st.spinner("⏳ Persiapan masuk Grand Final (Jeda 10 detik)..."):
-                                    time.sleep(10)
+                                with st.spinner("⏳ Persiapan masuk Grand Final (Jeda 40 detik untuk reset kuota API)..."):
+                                    time.sleep(40) # <-- UBAH: Naikkan dari 10 ke 40 detik
                                 
                                 payload_final = ""
                                 for tkr in finalis:
@@ -1420,7 +1421,8 @@ if not df_hasil.empty:
                                             res_final = client.chat.completions.create(
                                                 model=MODEL_ANDALAN,
                                                 messages=[{"role": "user", "content": prompt_final}],
-                                                temperature=0.2, max_tokens=3500 # <-- PERUBAHAN: Napas dikurangi agar aman dari Limit 8000 TPM
+                                                temperature=0.2, 
+                                                max_tokens=2000 # <-- UBAH: Turunkan dari 3500 ke 2000
                                             )
                                             
                                             jawaban_raw = res_final.choices[0].message.content.strip()
