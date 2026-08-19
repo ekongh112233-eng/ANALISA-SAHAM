@@ -1494,9 +1494,10 @@ if not df_hasil.empty:
             # Ekstrak angka rumus (1-9) dari pilihan dropdown
             nomor_rumus = pilihan_arena.split(" ")[1]
             
-            # 1. BACA DATA DARI DATABASE VIRTUAL SPESIFIK RUMUS
-            FILE_PORTO = f"portofolio_virtual_rumus_{nomor_rumus}.csv"
-            FILE_HIST = f"history_trade_rumus_{nomor_rumus}.csv"
+            # 1. BACA DATA DARI DATABASE (JALUR SUDAH DIPERBARUI KE FOLDER 'Database/')
+            FILE_SINYAL = f"Database/sinyal_ai_rumus_{nomor_rumus}.csv"
+            FILE_PORTO = f"Database/portofolio_virtual_rumus_{nomor_rumus}.csv"
+            FILE_HIST = f"Database/history_trade_rumus_{nomor_rumus}.csv"
             MODAL_AWAL = 100000000.0
 
             df_porto = pd.read_csv(FILE_PORTO) if os.path.exists(FILE_PORTO) else pd.DataFrame()
@@ -1529,8 +1530,16 @@ if not df_hasil.empty:
 
             st.markdown("---")
 
-            # 4. SUB-TAB UNTUK TABEL DETAIL
-            sub_aktif, sub_riwayat = st.tabs(["🟢 Posisi Aktif (Hold)", "📚 Riwayat Transaksi (Closed)"])
+            # 4. SUB-TAB UNTUK TABEL DETAIL (DITAMBAH TAB ANTREAN BELI)
+            sub_antrean, sub_aktif, sub_riwayat = st.tabs(["🎯 Antrean Beli (Watchlist)", "🟢 Posisi Aktif (Hold)", "📚 Riwayat Transaksi (Closed)"])
+
+            with sub_antrean:
+                if os.path.exists(FILE_SINYAL):
+                    df_sinyal = pd.read_csv(FILE_SINYAL)
+                    st.success("🔥 Sinyal AI telah diterima! Bot akan mengeksekusi pembelian pada jam bursa.")
+                    st.dataframe(df_sinyal, use_container_width=True, hide_index=True)
+                else:
+                    st.info(f"KOSONG. Belum ada sinyal masuk untuk {pilihan_arena}, atau bot sudah mengeksekusi dan membakar kertas belanja.")
 
             with sub_aktif:
                 if not df_porto.empty:
