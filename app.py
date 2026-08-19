@@ -1229,8 +1229,12 @@ if not df_hasil.empty:
                         
                         client = Groq(api_key=GROQ_API_KEY)
                         
+                        # ==========================================
+                        # MENGUNCI MODEL PILIHAN TERBAIK (QWEN)
+                        # ==========================================
                         MODEL_ANDALAN = "qwen/qwen3.6-27b"
                         
+                        # 1. Tentukan Dataframe dan Nama File Output
                         df_target = pd.DataFrame()
                         file_output = ""
                         nama_rumus = ""
@@ -1252,20 +1256,17 @@ if not df_hasil.empty:
                             st.success(f"Ditemukan {len(daftar_ticker)} saham. Memulai turnamen menggunakan otak {MODEL_ANDALAN}...")
                             
                             data_sejarah_ai = ekstrak_sari_pati_arsip(daftar_ticker, df_hasil)
-                            finalis = []
                             
                             # ==========================================
-                            # FASE 1: BABAK PENYISIHAN (ANTI-THINKING)
+                            # MESIN PENYISIHAN (BISA DIPAKAI BERKALI-KALI)
                             # ==========================================
-                            if len(daftar_ticker) <= 5:
-                                st.info("Jumlah kandidat sedikit. Langsung menuju Grand Final!")
-                                finalis = daftar_ticker
-                            else:
-                                st.markdown("#### ⚔️ Babak Penyisihan Dimulai")
+                            def jalankan_seleksi(daftar_kandidat, nama_tahap):
+                                lolos_tahap_ini = []
+                                st.markdown(f"#### ⚔️ {nama_tahap}")
                                 progress_bar = st.progress(0)
                                 
                                 chunk_size = 10
-                                chunks = [daftar_ticker[i:i + chunk_size] for i in range(0, len(daftar_ticker), chunk_size)]
+                                chunks = [daftar_kandidat[i:i + chunk_size] for i in range(0, len(daftar_kandidat), chunk_size)]
                                 
                                 for i, chunk in enumerate(chunks):
                                     st.write(f"Menganalisis Grup {i+1}/{len(chunks)} ({', '.join(chunk)})...")
@@ -1300,11 +1301,11 @@ if not df_hasil.empty:
                                             res = client.chat.completions.create(
                                                 model=MODEL_ANDALAN,
                                                 messages=[{"role": "user", "content": prompt_penyisihan}],
-                                                temperature=0.1, max_tokens=5000
+                                                temperature=0.1, max_tokens=2000
                                             )
                                             jawaban_mentah = res.choices[0].message.content.strip()
                                             
-                                            # LOGIKA TEBAS OTAK: Buang bagian <think> jika ada
+                                            # LOGIKA TEBAS OTAK
                                             if "</think>" in jawaban_mentah:
                                                 teks_final = jawaban_mentah.split("</think>")[-1].strip()
                                             else:
@@ -1321,41 +1322,56 @@ if not df_hasil.empty:
                                             data_json = json.loads(bersih)
                                             lolos = data_json.get("kandidat", [])
                                             
+                                            # Validasi keamanan
                                             lolos_valid = [x for x in lolos if x in chunk]
                                             
                                             if lolos_valid:
-                                                finalis.extend(lolos_valid)
-                                                st.write(f"➡️ Lolos ke Final: **{', '.join(lolos_valid)}**")
+                                                lolos_tahap_ini.extend(lolos_valid)
+                                                st.write(f"➡️ Lolos: **{', '.join(lolos_valid)}**")
                                             else:
                                                 st.write("➡️ Tidak ada yang lolos (Kosong).")
                                                 
                                             sukses = True
                                             
                                         except json.JSONDecodeError:
-                                            st.warning(f"⚠️ Percobaan {percobaan}: Gagal ekstrak JSON. Mengulang...")
-                                            with st.expander("Lihat Teks yang Bikin Error"):
-                                                st.code(teks_final) # Tampilkan teks yang bikin error
+                                            st.warning(f"⚠️ Gagal ekstrak JSON. Mengulang (Percobaan {percobaan}/3)...")
                                             time.sleep(2)
                                         except Exception as e:
                                             pesan_error = str(e)
                                             if "429" in pesan_error:
-                                                st.warning(f"⚠️ Limit API (429). Jeda 10 detik... (Percobaan {percobaan}/3)")
+                                                st.warning(f"⚠️ Limit API (429). Jeda 10 detik...")
                                                 time.sleep(10)
                                             else:
                                                 st.error(f"🛑 ERROR ASLI:\n{pesan_error}")
                                                 time.sleep(2)
                                                 
-                                    if not sukses:
-                                        st.error("🚨 Gagal mengekstrak data dari grup ini.")
-                                        
                                     progress_bar.progress((i + 1) / len(chunks))
-                                    
                                     if i < len(chunks) - 1:
-                                        with st.spinner("⏳ Jeda pendingin (15 detik)..."):
-                                            time.sleep(15)
-                                    
+                                        with st.spinner("⏳ Jeda pendingin..."):
+                                            time.sleep(12)
+                                            
+                                return lolos_tahap_ini
+
                             # ==========================================
-                            # FASE 2: GRAND FINAL (ANTI-THINKING ARRAY)
+                            # ALUR TURNAMEN (PENYISIHAN 1 & SEMIFINAL)
+                            # ==========================================
+                            finalis = []
+                            if len(daftar_ticker) <= 5:
+                                st.info("Jumlah kandidat sedikit. Langsung menuju Grand Final!")
+                                finalis = daftar_ticker
+                            else:
+                                # TAHAP 1
+                                kandidat_lolos_1 = jalankan_seleksi(daftar_ticker, "Babak Penyisihan Tahap 1")
+                                
+                                # TAHAP 2 (SEMIFINAL - Sesuai Ide Anda)
+                                if len(kandidat_lolos_1) > 15:
+                                    st.info(f"🔥 Ada {len(kandidat_lolos_1)} saham lolos. Memasuki Babak Semifinal untuk penyaringan lebih ketat!")
+                                    finalis = jalankan_seleksi(kandidat_lolos_1, "Babak Semifinal (Tahap 2)")
+                                else:
+                                    finalis = kandidat_lolos_1
+
+                            # ==========================================
+                            # FASE 3: GRAND FINAL (ANTI-THINKING ARRAY)
                             # ==========================================
                             st.markdown(f"#### 🏆 Grand Final {nama_rumus}")
                             if not finalis:
@@ -1404,7 +1420,7 @@ if not df_hasil.empty:
                                             res_final = client.chat.completions.create(
                                                 model=MODEL_ANDALAN,
                                                 messages=[{"role": "user", "content": prompt_final}],
-                                                temperature=0.2, max_tokens=6000 # <-- PERUBAHAN: Napas Naga untuk 24 Saham!
+                                                temperature=0.2, max_tokens=3500 # <-- PERUBAHAN: Napas dikurangi agar aman dari Limit 8000 TPM
                                             )
                                             
                                             jawaban_raw = res_final.choices[0].message.content.strip()
@@ -1421,12 +1437,10 @@ if not df_hasil.empty:
                                             if awal != -1 and akhir != -1:
                                                 bersih = teks_final_gf[awal:akhir+1]
                                             else:
-                                                # JANGAN DIMAAFKAN! Paksa error agar mengulang.
                                                 raise ValueError("Gagal menemukan kurung siku Array [ ... ]")
                                             
                                             hasil_json = json.loads(bersih)
                                             
-                                            # Cegah AI mengirim array kosong
                                             if not hasil_json:
                                                 raise ValueError("AI mengirim Array kosong padahal ada banyak finalis!")
 
@@ -1453,8 +1467,12 @@ if not df_hasil.empty:
                                             time.sleep(2)
                                         except Exception as e:
                                             pesan_error = str(e)
-                                            st.error(f"🛑 ERROR ASLI:\n{pesan_error}")
-                                            time.sleep(5)
+                                            if "413" in pesan_error or "tokens" in pesan_error:
+                                                st.error("🛑 Limit Token (413). Tunggu 30 detik untuk *cooldown*...")
+                                                time.sleep(30)
+                                            else:
+                                                st.error(f"🛑 ERROR ASLI:\n{pesan_error}")
+                                                time.sleep(5)
                                                 
                                     if not sukses_final:
                                         st.error("❌ Gagal mencetak sinyal Grand Final setelah 3 kali percobaan.")
