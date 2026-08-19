@@ -1404,7 +1404,7 @@ if not df_hasil.empty:
                                             res_final = client.chat.completions.create(
                                                 model=MODEL_ANDALAN,
                                                 messages=[{"role": "user", "content": prompt_final}],
-                                                temperature=0.2, max_tokens=2500
+                                                temperature=0.2, max_tokens=6000 # <-- PERUBAHAN: Napas Naga untuk 24 Saham!
                                             )
                                             
                                             jawaban_raw = res_final.choices[0].message.content.strip()
@@ -1421,9 +1421,15 @@ if not df_hasil.empty:
                                             if awal != -1 and akhir != -1:
                                                 bersih = teks_final_gf[awal:akhir+1]
                                             else:
-                                                bersih = "[]"
+                                                # JANGAN DIMAAFKAN! Paksa error agar mengulang.
+                                                raise ValueError("Gagal menemukan kurung siku Array [ ... ]")
                                             
                                             hasil_json = json.loads(bersih)
+                                            
+                                            # Cegah AI mengirim array kosong
+                                            if not hasil_json:
+                                                raise ValueError("AI mengirim Array kosong padahal ada banyak finalis!")
+
                                             df_tampil = pd.DataFrame(hasil_json)
                                             
                                             with st.container():
@@ -1441,6 +1447,9 @@ if not df_hasil.empty:
                                             
                                         except json.JSONDecodeError:
                                             st.warning(f"⚠️ JSON tidak valid. Mengulang (Percobaan {percobaan_final}/3)...")
+                                            time.sleep(2)
+                                        except ValueError as ve:
+                                            st.warning(f"⚠️ {ve} Mengulang (Percobaan {percobaan_final}/3)...")
                                             time.sleep(2)
                                         except Exception as e:
                                             pesan_error = str(e)
