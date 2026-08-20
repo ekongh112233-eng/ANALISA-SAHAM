@@ -26,7 +26,7 @@ from mesin_ai import (
 )
 
 # ==========================================
-# SECTION 1: PENGATURAN UI/UX & API
+# PENGATURAN UI/UX & API
 # ==========================================
 st.set_page_config(page_title="Screener Saham IHSG", layout="wide", initial_sidebar_state="expanded")
 
@@ -55,7 +55,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# SECTION 2: LOAD KONFIGURASI JSON & DATA
+# LOAD KONFIGURASI JSON & DATA
 # ==========================================
 FILE_CONFIG = "config_web.json"
 FILE_PRESET = "preset_kustom.json"
@@ -63,8 +63,7 @@ FILE_KAMUS = "Konfigurasi/kamus_edukasi.json"
 FILE_HASIL = "Database/hasil_screener.csv"
 FILE_AKUISISI = "Database/data_akuisisi.csv"
 
-if not os.path.exists(FILE_CONFIG):
-    pass 
+if not os.path.exists(FILE_CONFIG): pass 
 
 with open(FILE_CONFIG, "r") as f: WEB_CONFIG = json.load(f)
 
@@ -90,7 +89,7 @@ def load_data_saham():
 df_hasil = load_data_saham()
 
 # ==========================================
-# SECTION 3: HEADER & SIDEBAR
+# HEADER & SIDEBAR
 # ==========================================
 if not df_hasil.empty and "Terakhir Update" in df_hasil.columns:
     waktu_update = df_hasil["Terakhir Update"].iloc[0]
@@ -190,7 +189,7 @@ st.markdown("Detektor Jejak Bandar, Anomali Volume, & Strategi BSJP.")
 st.markdown("---")
 
 # ==========================================
-# SECTION 4: FUNGSI PEWARNAAN TABEL
+# FUNGSI PEWARNAAN & FORMATTER TABEL
 # ==========================================
 def format_skor(s): return "⭐" * int(s) if pd.notna(s) and int(s) > 0 else "-"
 def format_pct(v): return f"{'▲ ' if v > 0 else '▼ '}{v:+.2f}%" if pd.notna(v) and v != 0 else "0.00%"
@@ -198,7 +197,6 @@ def format_mom(v): return "▲ Positif" if v == "Positif" else ("▼ Negatif" if
 def format_desimal(v): return f"{v:.2f}" if pd.notna(v) and v != 0 else "-"
 def format_angka(v): return f"{int(v):,}".replace(",", ".") if pd.notna(v) else "-"
 
-# SMART FORMATTER ALA STOCKBIT
 def format_singkat_vol(v):
     if pd.isna(v): return "-"
     if v >= 1_000_000: return f"{v/1_000_000:.2f} M Lot"
@@ -249,14 +247,17 @@ def render_strategy_table(df_subset, file_name):
             st.caption("Klik icon 'Copy' untuk paste ke Tab AI.")
     else: st.info("🔍 Belum ada pergerakan saham yang memenuhi kriteria strategi ini pada sesi saat ini.")
 
-# ==========================================
-# SECTION 5: RENDER 6 TABS UTAMA 
-# ==========================================
+# ==============================================================================
+# DEKLARASI TABS UTAMA
+# ==============================================================================
 if not df_hasil.empty:
     tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
         "📊 Market Overview", "📌 Screener Utama", "📖 Kamus Istilah", "💡 Strategi Pakar", "⚙️ Asisten AI Spesial", "💼 Portofolio Bot"
     ])
     
+    # ==========================================================================
+    # [TAB 1] MARKET OVERVIEW
+    # ==========================================================================
     with tab1:
         st.markdown("### 📊 Ringkasan Pasar IHSG")
         
@@ -318,6 +319,9 @@ if not df_hasil.empty:
                 df_val = df_hasil.nlargest(10, 'Turnover')
                 render_top_table(df_val, ['Ticker', 'Harga (Rp)', 'Turnover', 'Change (%)'], {'Harga (Rp)': format_angka, 'Turnover': format_singkat_rp, 'Change (%)': format_pct})
 
+    # ==========================================================================
+    # [TAB 2] SCREENER UTAMA
+    # ==========================================================================
     with tab2:
         with st.expander("🛠️ Buka Panel Filter Lengkap", expanded=False):
             col_f1, col_f2, col_f3, col_f4 = st.columns(4)
@@ -343,10 +347,8 @@ if not df_hasil.empty:
         
         if search_ticker: 
             df_filtered = df_filtered[df_filtered["Ticker"].astype(str).str.contains(search_ticker.upper(), na=False)]
-            
         if search_broker and "Broksum" in df_filtered.columns: 
             df_filtered = df_filtered[df_filtered["Broksum"].astype(str).str.contains(search_broker.upper(), na=False)]
-            
         if min_price > 0:
             df_filtered = df_filtered[df_filtered["Harga (Rp)"] >= min_price]
         if max_price > 0:
@@ -413,14 +415,23 @@ if not df_hasil.empty:
                 st.caption("Klik icon 'Copy' untuk paste massal ke Tab V6/V7.")
         else: st.warning("Tidak ada data sesuai filter.")
 
+    # ==========================================================================
+    # [TAB 3] KAMUS ISTILAH
+    # ==========================================================================
     with tab3:
         st.markdown("### 📖 Kamus Edukasi")
         for k, v in KAMUS_EDUKASI.items(): st.write(f"**{k}**: {v}")
 
+    # ==========================================================================
+    # [TAB 4] STRATEGI PAKAR
+    # ==========================================================================
     with tab4:
         st.markdown("### 💡 Panduan Strategi")
         for k, v in STRATEGI_SIMULASI.items(): st.write(f"**{k}**: {v}")
 
+    # ==========================================================================
+    # [TAB 5] ASISTEN AI SPESIAL
+    # ==========================================================================
     with tab5:
         st.markdown("## 🦅 Radar BSJP & Asisten AI Spesial")
         
@@ -503,7 +514,7 @@ if not df_hasil.empty:
                                         st.write(f"➡️ Lolos: {', '.join(lolos_valid)}")
                                         sukses = True
                                     except Exception as e:
-                                        if "429" in str(e) or "413" in str(e):
+                                        if "429" in str(e).lower() or "413" in str(e).lower() or "tokens" in str(e).lower():
                                             lyr = st.empty()
                                             for d in range(60, 0, -1):
                                                 lyr.warning(f"💤 Tidur {d} detik agar token aman...")
@@ -572,6 +583,9 @@ if not df_hasil.empty:
                                             if percobaan_final == 3:
                                                 st.error(f"❌ Gagal Grand Final: {e}")
 
+    # ==========================================================================
+    # [TAB 6] PORTOFOLIO BOT
+    # ==========================================================================
     with tab6:
         st.markdown("## 📊 Dashboard Bot Simulator")
         pilihan_arena = st.selectbox("Pilih Arena:", [r["judul"] for r in KAMUS_RUMUS.values()])
