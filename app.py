@@ -260,20 +260,17 @@ if not df_hasil.empty:
     with tab1:
         st.markdown("### 📊 Ringkasan Pasar IHSG")
         
-        # 1. KALKULASI METRIK ATAS
         total_saham = len(df_hasil)
         saham_naik = len(df_hasil[df_hasil['Change (%)'] > 0]) if 'Change (%)' in df_hasil.columns else 0
         saham_turun = len(df_hasil[df_hasil['Change (%)'] < 0]) if 'Change (%)' in df_hasil.columns else 0
         saham_stagnan = total_saham - saham_naik - saham_turun
         
-        # Hitung Nilai Transaksi (Turnover) -> Harga x Volume x 100
         if 'Turnover' not in df_hasil.columns:
             if 'Volume' in df_hasil.columns and 'Harga (Rp)' in df_hasil.columns:
                 df_hasil['Turnover'] = df_hasil['Harga (Rp)'] * df_hasil['Volume'] * 100
             else:
                 df_hasil['Turnover'] = 0
 
-        # LOGIKA SENTIMEN PASAR
         if saham_naik > (saham_turun * 1.5): sentimen_teks, warna_sentimen = "🔥 Sangat Bullish", "#4ade80"
         elif saham_turun > (saham_naik * 1.5): sentimen_teks, warna_sentimen = "🩸 Sangat Bearish", "#f87171"
         else: sentimen_teks, warna_sentimen = "⚖️ Konsolidasi (Ragu)", "#facc15"
@@ -287,7 +284,6 @@ if not df_hasil.empty:
         
         st.markdown("---")
         
-        # 2. GRID 2x2 UNTUK TOP LIST BERGAYA STOCKBIT
         c1, c2 = st.columns(2)
         c3, c4 = st.columns(2)
 
@@ -537,16 +533,44 @@ if not df_hasil.empty:
                             lyr_gf.empty()
                             
                             payload_final = "\n".join([f"{tkr}: {data_sejarah_ai.get(tkr, '')}" for tkr in finalis])
-                            prompt_final = f"Select TOP 5 stocks from these finalists.\nDATA:\n{payload_final}\nOUTPUT JSON ARRAY: [{{\"Peringkat\": 1, \"Ticker\": \"A\", \"Target_TP\": 100, \"Target_CL\": 90}}]"
+                            prompt_final = f"Select TOP 5 stocks from these finalists.\nDATA:\n{payload_final}\nOUTPUT JSON ARRAY ONLY WITHOUT ANY TEXT: [{{\"Peringkat\": 1, \"Ticker\": \"A\", \"Target_TP\": 100, \"Target_CL\": 90, \"Alasan\": \"Bagus\"}}]"
                             
-                            try:
-                                res_final = client.chat.completions.create(model=MODEL_ANDALAN, messages=[{"role": "user", "content": prompt_final}], temperature=0.2, max_tokens=2500)
-                                bersihkan = '[' + res_final.choices[0].message.content.split('[')[-1].split(']')[0] + ']'
-                                df_tampil = pd.DataFrame(json.loads(bersihkan))
-                                st.table(df_tampil)
-                                df_tampil[['Ticker', 'Target_TP', 'Target_CL']].to_csv(file_output, index=False)
-                                st.success("Sinyal sukses dikirim ke Bot Simulator Tab 6!")
-                            except Exception as e: st.error(f"Gagal Grand Final: {e}")
+                            with st.spinner(f"AI meracik Grand Final {nama_rumus}..."):
+                                sukses_final, percobaan_final = False, 0
+                                while not sukses_final and percobaan_final < 3:
+                                    percobaan_final += 1
+                                    try:
+                                        res_final = client.chat.completions.create(model=MODEL_ANDALAN, messages=[{"role": "user", "content": prompt_final}], temperature=0.2, max_tokens=2500)
+                                        jawaban_raw = res_final.choices[0].message.content.strip()
+                                        
+                                        if "</think>" in jawaban_raw:
+                                            jawaban_raw = jawaban_raw.split("</think>")[-1].strip()
+                                            
+                                        awal = jawaban_raw.find('[')
+                                        akhir = jawaban_raw.rfind(']')
+                                        
+                                        if awal != -1 and akhir != -1:
+                                            bersihkan = jawaban_raw[awal:akhir+1]
+                                            df_tampil = pd.DataFrame(json.loads(bersihkan))
+                                            st.table(df_tampil)
+                                            df_tampil[['Ticker', 'Target_TP', 'Target_CL']].to_csv(file_output, index=False)
+                                            st.success("🎉 Sinyal sukses dikirim ke Bot Simulator Tab 6!")
+                                            sukses_final = True
+                                        else:
+                                            raise ValueError("Format JSON Array tidak ditemukan.")
+                                            
+                                    except Exception as e:
+                                        if "429" in str(e).lower() or "413" in str(e).lower():
+                                            lyr_err = st.empty()
+                                            for d in range(60, 0, -1):
+                                                lyr_err.error(f"🛑 Tembok Limit Tertabrak! AI tidur {d} detik...")
+                                                time.sleep(1)
+                                            lyr_err.empty()
+                                        else:
+                                            st.warning(f"⚠️ Ekstrak JSON gagal. Mengulang (Percobaan {percobaan_final}/3)...")
+                                            time.sleep(2)
+                                            if percobaan_final == 3:
+                                                st.error(f"❌ Gagal Grand Final: {e}")
 
     with tab6:
         st.markdown("## 📊 Dashboard Bot Simulator")
