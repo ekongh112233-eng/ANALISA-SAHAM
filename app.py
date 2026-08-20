@@ -323,7 +323,22 @@ if not df_hasil.empty:
     # [TAB 2] SCREENER UTAMA
     # ==========================================================================
     with tab2:
+        # FUNGSI RESET: Menyapu bersih semua memori filter ke pengaturan awal
+        def reset_semua_filter():
+            for k, info in MASTER_FILTERS.items():
+                if f"main_{k}" in st.session_state:
+                    st.session_state[f"main_{k}"] = info["options"][0]
+            # Sekalian reset kotak pencarian dan harga di bawahnya
+            st.session_state["pencarian_ticker"] = ""
+            st.session_state["pencarian_broker"] = ""
+            st.session_state["batas_harga_min"] = 0
+            st.session_state["batas_harga_max"] = 0
+
         with st.expander("🛠️ Buka Panel Filter Lengkap", expanded=False):
+            # Tombol Sakti untuk Reset
+            st.button("🔄 Reset Semua Filter ke Bawaan (Semua)", on_click=reset_semua_filter, use_container_width=True)
+            st.markdown("---")
+            
             col_f1, col_f2, col_f3, col_f4 = st.columns(4)
             filter_terpilih = {}
             for idx, (db_key, info) in enumerate(MASTER_FILTERS.items()):
@@ -335,20 +350,22 @@ if not df_hasil.empty:
 
         col_search, col_broker, col_min, col_max = st.columns([1.5, 1.5, 1, 1])
         with col_search: 
-            search_ticker = st.text_input("🔍 Cari Kode Saham", "", placeholder="Contoh: BBCA")
+            search_ticker = st.text_input("🔍 Cari Kode Saham", "", placeholder="Contoh: BBCA", key="pencarian_ticker")
         with col_broker: 
-            search_broker = st.text_input("👤 Cari Kode Broker", "", placeholder="Contoh: MG / YP")
+            search_broker = st.text_input("👤 Cari Kode Broker", "", placeholder="Contoh: MG / YP", key="pencarian_broker")
         with col_min: 
-            min_price = st.number_input("⬇️ Harga Minimal (Rp)", min_value=0, value=0, step=10)
+            min_price = st.number_input("⬇️ Harga Minimal (Rp)", min_value=0, value=0, step=10, key="batas_harga_min")
         with col_max: 
-            max_price = st.number_input("⬆️ Harga Maksimal (Rp)", min_value=0, value=0, step=10)
+            max_price = st.number_input("⬆️ Harga Maksimal (Rp)", min_value=0, value=0, step=10, key="batas_harga_max")
 
         df_filtered = df_hasil.copy()
         
         if search_ticker: 
             df_filtered = df_filtered[df_filtered["Ticker"].astype(str).str.contains(search_ticker.upper(), na=False)]
+            
         if search_broker and "Broksum" in df_filtered.columns: 
             df_filtered = df_filtered[df_filtered["Broksum"].astype(str).str.contains(search_broker.upper(), na=False)]
+            
         if min_price > 0:
             df_filtered = df_filtered[df_filtered["Harga (Rp)"] >= min_price]
         if max_price > 0:
