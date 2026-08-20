@@ -64,7 +64,7 @@ FILE_HASIL = "Database/hasil_screener.csv"
 FILE_AKUISISI = "Database/data_akuisisi.csv"
 
 if not os.path.exists(FILE_CONFIG):
-    pass # Menggunakan default dari server Anda
+    pass 
 
 with open(FILE_CONFIG, "r") as f: WEB_CONFIG = json.load(f)
 
@@ -90,7 +90,7 @@ def load_data_saham():
 df_hasil = load_data_saham()
 
 # ==========================================
-# SECTION 3: HEADER & SIDEBAR (TAMPILAN ASLI DIKEMBALIKAN)
+# SECTION 3: HEADER & SIDEBAR
 # ==========================================
 if not df_hasil.empty and "Terakhir Update" in df_hasil.columns:
     waktu_update = df_hasil["Terakhir Update"].iloc[0]
@@ -142,7 +142,6 @@ opsi_preset = ["Matikan Preset (Manual)"] + list(daftar_preset_aktif.keys())
 idx_default = opsi_preset.index(st.session_state.preset_selector) if st.session_state.preset_selector in opsi_preset else 0
 st.sidebar.selectbox("📌 Pilih Preset Aktif:", opsi_preset, index=idx_default, key="preset_selector", on_change=apply_preset)
 
-# Mengembalikan Menu Manajemen Preset
 kustom_presets = {}
 if os.path.exists(FILE_PRESET):
     try:
@@ -237,23 +236,76 @@ def render_strategy_table(df_subset, file_name):
     else: st.info("🔍 Belum ada pergerakan saham yang memenuhi kriteria strategi ini pada sesi saat ini.")
 
 # ==========================================
-# SECTION 5: RENDER 6 TABS UTAMA (EMOJI WINDOWS SAFE)
+# SECTION 5: RENDER 6 TABS UTAMA
 # ==========================================
 if not df_hasil.empty:
+    # MENGGUNAKAN EMOJI STANDAR UNIVERSAL
     tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-        "📊 Market Overview", "📌 Screener Utama", "📖 Kamus Istilah", "💡 Strategi Pakar", "⚙️ Asisten AI Spesial", "💼 Portofolio Bot"
+        "📊 Market Overview", "📌 Screener Utama", "📖 Kamus Istilah", "💡 Strategi Pakar", "🤖 Asisten AI Spesial", "💼 Portofolio Bot"
     ])
     
     with tab1:
-        st.markdown("### 📊 Ringkasan Pasar")
-        m1, m2 = st.columns(2)
-        m1.metric("🔍 Total Saham Terpantau", len(df_hasil))
-        if 'Change (%)' in df_hasil.columns:
-            df_top = df_hasil.nlargest(10, 'Change (%)')
-            st.plotly_chart(px.bar(df_top, x='Change (%)', y='Ticker', orientation='h', title="Top 10 Gainers"), use_container_width=True)
+        st.markdown("### 📊 Ringkasan Pasar IHSG")
+        
+        # 1. KALKULASI METRIK ATAS
+        total_saham = len(df_hasil)
+        saham_naik = len(df_hasil[df_hasil['Change (%)'] > 0]) if 'Change (%)' in df_hasil.columns else 0
+        saham_turun = len(df_hasil[df_hasil['Change (%)'] < 0]) if 'Change (%)' in df_hasil.columns else 0
+        saham_stagnan = total_saham - saham_naik - saham_turun
+        
+        # Hitung Nilai Transaksi (Turnover) -> Harga x Volume x 100 (asumsi volume = lot)
+        if 'Turnover' not in df_hasil.columns:
+            if 'Volume' in df_hasil.columns and 'Harga (Rp)' in df_hasil.columns:
+                df_hasil['Turnover'] = df_hasil['Harga (Rp)'] * df_hasil['Volume'] * 100
+            else:
+                df_hasil['Turnover'] = 0
+                
+        m1, m2, m3, m4 = st.columns(4)
+        m1.markdown(f"<div class='metric-container'><h3>🔍 Total Saham</h3><h2>{total_saham}</h2></div>", unsafe_allow_html=True)
+        m2.markdown(f"<div class='metric-container'><h3>🟢 Menguat</h3><h2 style='color: #4ade80;'>{saham_naik}</h2></div>", unsafe_allow_html=True)
+        m3.markdown(f"<div class='metric-container'><h3>🔴 Melemah</h3><h2 style='color: #f87171;'>{saham_turun}</h2></div>", unsafe_allow_html=True)
+        m4.markdown(f"<div class='metric-container'><h3>⚪ Stagnan</h3><h2 style='color: #94a3b8;'>{saham_stagnan}</h2></div>", unsafe_allow_html=True)
+        
+        st.markdown("---")
+        
+        # 2. GRID 2x2 UNTUK TOP LIST BERGAYA STOCKBIT
+        c1, c2 = st.columns(2)
+        c3, c4 = st.columns(2)
+        
+        # Konfigurasi Kolom Rapi untuk Streamlit
+        cfg_ticker = st.column_config.TextColumn("Ticker", width="small")
+        cfg_harga = st.column_config.NumberColumn("Harga", format="Rp %d")
+        cfg_persen = st.column_config.NumberColumn("Change", format="%.2f %%")
+        cfg_vol = st.column_config.NumberColumn("Volume", format="%d Lot")
+        cfg_val = st.column_config.NumberColumn("Turnover", format="Rp %d")
+        
+        with c1:
+            st.markdown("#### 🔥 Top Gainers")
+            if 'Change (%)' in df_hasil.columns:
+                df_gainer = df_hasil.nlargest(10, 'Change (%)')[['Ticker', 'Harga (Rp)', 'Change (%)']]
+                st.dataframe(df_gainer, use_container_width=True, hide_index=True, column_config={"Ticker": cfg_ticker, "Harga (Rp)": cfg_harga, "Change (%)": cfg_persen})
+            
+        with c2:
+            st.markdown("#### 🩸 Top Losers")
+            if 'Change (%)' in df_hasil.columns:
+                df_loser = df_hasil.nsmallest(10, 'Change (%)')[['Ticker', 'Harga (Rp)', 'Change (%)']]
+                st.dataframe(df_loser, use_container_width=True, hide_index=True, column_config={"Ticker": cfg_ticker, "Harga (Rp)": cfg_harga, "Change (%)": cfg_persen})
+            
+        st.markdown("<br>", unsafe_allow_html=True) # Jarak antar baris
+            
+        with c3:
+            st.markdown("#### 🌊 Top Volume")
+            if 'Volume' in df_hasil.columns:
+                df_vol = df_hasil.nlargest(10, 'Volume')[['Ticker', 'Harga (Rp)', 'Volume']]
+                st.dataframe(df_vol, use_container_width=True, hide_index=True, column_config={"Ticker": cfg_ticker, "Harga (Rp)": cfg_harga, "Volume": cfg_vol})
+            
+        with c4:
+            st.markdown("#### 💰 Top Value (Turnover)")
+            if 'Turnover' in df_hasil.columns:
+                df_val = df_hasil.nlargest(10, 'Turnover')[['Ticker', 'Harga (Rp)', 'Turnover']]
+                st.dataframe(df_val, use_container_width=True, hide_index=True, column_config={"Ticker": cfg_ticker, "Harga (Rp)": cfg_harga, "Turnover": cfg_val})
 
     with tab2:
-        # MENGEMBALIKAN TAMPILAN ASLI TAB SCREENER UTAMA
         with st.expander("🛠️ Buka Panel Filter Lengkap", expanded=False):
             col_f1, col_f2, col_f3, col_f4 = st.columns(4)
             filter_terpilih = {}
