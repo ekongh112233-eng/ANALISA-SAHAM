@@ -13,17 +13,6 @@ import google.generativeai as genai
 from groq import Groq
 from dotenv import load_dotenv
 
-# IMPORT SANG OTAK DARI MESIN_AI.PY
-from mesin_ai import (
-    ekstrak_sari_pati_arsip, 
-    get_historical_summary, 
-    get_forensic_data, 
-    analisa_bandar_ai_multisaham, 
-    analisa_forensik_ai, 
-    ai_penyisihan_turnamen, 
-    ai_grand_final_top5
-)
-
 # ==========================================
 # 🧠 SISTEM ARSIP CERDAS: GPS & PEMERAS DATA
 # ==========================================
